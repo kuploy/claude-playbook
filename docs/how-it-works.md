@@ -67,6 +67,23 @@ ln -s ~/claude-playbook/claude/agents ~/.claude/agents
 
 Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in the clone updates the agents.
 
+## When Actions minutes run out
+
+`scripts/copy-by-hand.sh` does the sync Action's job from your terminal. It reads the same `.github/sync.yml`.
+
+```sh
+cd ~/claude-playbook
+scripts/copy-by-hand.sh --list                       # what it would use, changes nothing
+scripts/copy-by-hand.sh --dry-run --only pull_request_template
+scripts/copy-by-hand.sh --only pull_request_template # do it: one draft PR per repo
+scripts/copy-by-hand.sh --only pull_request_template ceduth/roadprep   # just these repos
+```
+
+- **Needs:** SSH access to the repos, and the `gh` CLI. Without `gh` it pushes the branch and tells you which PRs to open by hand.
+- **Always pass `--only`** while `two-reviews` can't run. Without it the script also copies `two-reviews.yml`, and a required check that never runs blocks every merge.
+- **Don't run it twice for the same repos** while their PRs are open. Same day it fails on the existing branch. On another day it opens a duplicate PR.
+- **After the PRs are merged,** a rerun says "already up to date".
+
 ## Not covered
 
 - Per-repo write tokens (one writer per repo). Needs GitHub token setup, not files.
