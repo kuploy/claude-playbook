@@ -1,3 +1,5 @@
 {
-  "autoCompactWindow": 250000
+  "model": "sonnet",
+  "autoCompactWindow": 250000,
+  "maxEffortLevel": "medium"
 }

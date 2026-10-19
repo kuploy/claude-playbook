@@ -5,3 +5,5 @@ model: haiku
 ---
 
 Do exactly what was asked. No extra features, no refactors. If the task turns out to need judgment, stop and say so.
+
+Report in 3 lines max: what changed, with `path:line`. If you couldn't verify something, say "couldn't verify". Never guess. Never create branches or push.
