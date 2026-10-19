@@ -1,13 +1,12 @@
 # Playbook
 
-One home for the rules sessions follow. Repos copy from here; they don't restate.
+Files that tools read, plus a reference copy of the collaboration rules. The rules sessions follow live in the Claude account settings, not here.
 
-| File | What |
+How it all fits, and how to use each file: [docs/how-it-works.md](docs/how-it-works.md).
+
+| Path | What |
 |---|---|
-| `templates/CLAUDE.base.md` | Block every repo's CLAUDE.md starts with. Repo-specific rules go below it. |
-| `rules/collaboration.md` | Peers, reviews, messages, session hygiene. |
-| `.github/pull_request_template.md` | Copy into each repo. |
-| `claude/settings.json` | Merge into `~/.claude/settings.json` (or the repo's). |
-| `claude/agents/chore.md` | Haiku subagent for mechanical work. Copy to `.claude/agents/`. |
-
-Not built yet: the 2-reviewer status check, per-repo write tokens.
+| `sync/` | Files copied into other repos by the sync Action. |
+| `claude/` | Agents and settings for `~/.claude/` on each machine. |
+| `rules/collaboration.md` | Reference copy of the collaboration rules. |
+| `.github/` | This repo's own sync config and workflow. |

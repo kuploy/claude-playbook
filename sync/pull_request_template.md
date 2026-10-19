@@ -12,4 +12,12 @@
 
 ## Reviews (2 needed)
 
-<!-- Each reviewer posts: what they ran, what it would have caught, verdict. -->
+<!--
+Each reviewer posts ONE comment in this format. The `two-reviews` check counts them.
+Reviews posted before the last push don't count.
+
+Reviewer: <session or person name>
+Verdict: approve
+Ran: <what you ran>
+Would catch: <what that would have caught>
+-->

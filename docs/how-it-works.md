@@ -1,0 +1,73 @@
+# How it works
+
+## The picture
+
+- **Rules the model follows** live in your Claude account settings. One home. This repo does not hold them.
+- **This repo holds files that tools read.** A robot copies them into your other repos.
+- Nothing here is read by a session unless it is copied somewhere first.
+
+## Who reads what
+
+| File in this repo | Copied to | Read by | Copied by |
+|---|---|---|---|
+| `sync/pull_request_template.md` | `.github/pull_request_template.md` in each repo | GitHub, when a PR opens | sync Action |
+| `sync/two-reviews.yml` | `.github/workflows/two-reviews.yml` in each repo | GitHub Actions | sync Action |
+| `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
+| `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once |
+| `rules/collaboration.md` | nowhere | people, as a reference | nobody |
+
+## The sync Action
+
+[repo-file-sync-action](https://github.com/BetaHuhn/repo-file-sync-action), set up in `.github/workflows/sync.yml` and `.github/sync.yml`.
+
+1. You push to `main` here.
+2. The Action reads `.github/sync.yml`: which files go to which repos.
+3. For each repo where the file is missing or different, it opens a PR there.
+4. You merge that PR. Done.
+
+- **New repo:** add its name to `.github/sync.yml`.
+- **A repo wants its own version of a file:** merge once, then remove that repo from the list for that file. After that the file belongs to the repo.
+- **Token:** add a repo secret `SYNC_TOKEN` (a PAT that can write contents and PRs on the target repos). A fine-grained PAT covers one owner only. You have three (`kuploy`, `ceduth`, `leeram-hq`), so use a classic PAT with `repo` scope, or one token and one step per owner. Until the secret exists, the sync run fails. That is expected.
+- **Sync PRs need the usual 2 reviews** once `two-reviews` is required in the target repo. Exempt the sync bot in the ruleset if that is too much.
+
+## The two-reviews check
+
+Blocks a merge until two reviewers have approved. It does not need separate GitHub accounts, because your sessions all act as you.
+
+**How a reviewer approves.** Post one comment (or review) on the PR:
+
+```
+Reviewer: <session or person name>
+Verdict: approve
+Ran: <what you ran>
+Would catch: <what that would have caught>
+```
+
+**What counts:**
+- Two different `Reviewer:` names, each with `Verdict: approve`, `Ran:` and `Would catch:` filled in.
+- Posted after the last push. Push code and old reviews stop counting.
+- A reviewer's latest comment wins. A later "changes requested" cancels their approval.
+- Only people with write access count.
+
+**What it does:** posts a commit status named `two-reviews` on the PR head: `success` at 2, `pending` below.
+
+**Turn it on, per repo, once:** ruleset for `dev` and `main` → require status check `two-reviews`. This is manual. The Action cannot do it.
+
+**Limits:**
+- It trusts the `Reviewer:` name. One session can write two names. It makes skipping visible, not impossible.
+- It does not judge whether `Ran:` is true.
+- Tested with mocked data only. Not yet run on a real PR.
+
+## Per machine, once
+
+```sh
+git clone git@github.com:ceduth/claude-playbook.git ~/claude-playbook
+ln -s ~/claude-playbook/claude/agents ~/.claude/agents
+```
+
+Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in the clone updates the agents.
+
+## Not covered
+
+- Per-repo write tokens (one writer per repo). Needs GitHub token setup, not files.
+- Subagents on other models. Add a file in `claude/agents/` when you actually delegate to one.

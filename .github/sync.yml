@@ -1,0 +1,17 @@
+# Read by repo-file-sync-action (see .github/workflows/sync.yml).
+# Each push to main opens a PR in every repo below whose copy differs.
+# New repo: add a line under `repos`. Repo wants its own version of a file: see docs/how-it-works.md.
+group:
+  repos: |
+    kuploy/kuploy
+    kuploy/kuploy-cloud
+    kuploy/growthops
+    kuploy/kuploy-docs
+    kuploy/kuploy-k8s
+    ceduth/epay-gateway
+    leeram-hq/business
+  files:
+    - source: sync/pull_request_template.md
+      dest: .github/pull_request_template.md
+    - source: sync/two-reviews.yml
+      dest: .github/workflows/two-reviews.yml

@@ -1,13 +1,15 @@
 # Collaboration rules
 
-Enforced = the system refuses. Convention = a template makes it the easy path. Willpower = only this file.
+**Reference copy only.** The source of truth is the "Working with other sessions" and "Sessions and quota" sections of the Claude account settings. Sessions read those, not this file. Change the account settings first, then update this copy. If they disagree, the account settings win.
+
+Enforced = the system refuses. Convention = a template makes it the easy path. Willpower = only the rule.
 
 ## Peers and repos
 
-- A repo has **one writer** (one peer). Everyone may read every repo. *(Enforced: per-repo token. Convention until then.)*
-- Every piece of work needs **2 reviewers** before it merges. *(Enforced: ruleset or status check.)*
+- A repo has **one writer** (one peer). Everyone may read every repo. *(Not enforced yet: needs per-repo tokens.)*
+- Every piece of work needs **2 reviewers** before it merges. *(Enforced by the `two-reviews` check, once required in the ruleset. See `docs/how-it-works.md`.)*
 - **Never hold a finished review.** Post it and reply to the peer with the result. *(Willpower.)*
-- A review says **what was run and what it would have caught**. "Looks good" doesn't count. *(Convention: PR template.)*
+- A review says **what was run and what it would have caught**. "Looks good" doesn't count. *(Enforced: the check needs `Ran:` and `Would catch:`.)*
 
 ## Messages (quota)
 

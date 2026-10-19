@@ -1,0 +1,73 @@
+# Synced from ceduth/claude-playbook (sync/two-reviews.yml). Don't edit here; edit the playbook.
+# Posts a commit status "two-reviews" on the PR head. Mark that status as required in the branch ruleset.
+# How reviews are counted: see docs/how-it-works.md in the playbook.
+name: two-reviews
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  statuses: write
+
+concurrency:
+  group: two-reviews-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === 'issue_comment' && !context.payload.issue.pull_request) return;
+            const { owner, repo } = context.repo;
+            const number = context.payload.pull_request?.number ?? context.payload.issue.number;
+
+            const pr = (await github.rest.pulls.get({ owner, repo, pull_number: number })).data;
+            const head = await github.rest.repos.getCommit({ owner, repo, ref: pr.head.sha });
+            const since = new Date(head.data.commit.committer.date);
+
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
+            const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: number, per_page: 100 });
+            const items = [
+              ...comments.map(c => ({ body: c.body, at: c.created_at, assoc: c.author_association })),
+              ...reviews.map(r => ({ body: r.body, at: r.submitted_at, assoc: r.author_association })),
+            ].sort((a, b) => new Date(a.at) - new Date(b.at));
+
+            const trusted = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            const field = (body, name) =>
+              (body.match(new RegExp(`^\\s*${name}:[ \\t]*(.+)$`, 'im')) || [])[1]?.trim();
+
+            // Latest review per reviewer name, only from people with write access, only after the last push.
+            const latest = new Map();
+            for (const it of items) {
+              if (!it.body || !trusted.has(it.assoc) || new Date(it.at) <= since) continue;
+              const who = field(it.body, 'Reviewer');
+              const verdict = field(it.body, 'Verdict');
+              if (!who || !verdict) continue;
+              latest.set(who.toLowerCase(), {
+                verdict: verdict.toLowerCase(),
+                ran: field(it.body, 'Ran'),
+                catches: field(it.body, 'Would catch'),
+              });
+            }
+            const good = [...latest.values()].filter(v => v.verdict.startsWith('approve') && v.ran && v.catches);
+            const ok = good.length >= 2;
+
+            await github.rest.repos.createCommitStatus({
+              owner, repo, sha: pr.head.sha,
+              state: ok ? 'success' : 'pending',
+              context: 'two-reviews',
+              description: ok
+                ? `${good.length} approving reviews since last push`
+                : `${good.length}/2 approving reviews since last push`,
+            });
