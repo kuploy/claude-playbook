@@ -28,7 +28,8 @@
 - **New repo:** add its name to `.github/sync.yml`.
 - **A repo wants its own version of a file:** merge once, then remove that repo from the list for that file. After that the file belongs to the repo.
 - **Token:** add a repo secret `SYNC_TOKEN` (a PAT that can write contents and PRs on the target repos). A fine-grained PAT covers one owner only. You have three (`kuploy`, `ceduth`, `leeram-hq`), so use a classic PAT with `repo` scope, or one token and one step per owner. Until the secret exists, the sync run fails. That is expected.
-- **Sync PRs need the usual 2 reviews** once `two-reviews` is required in the target repo. Exempt the sync bot in the ruleset if that is too much.
+- **Review rule for sync PRs (exception to the 2-review rule).** A PR that only copies files from the playbook needs one check: the file's git blob hash matches the playbook's (`git hash-object sync/<file>`). Post it as a review comment, once. No second review. Any difference from the source, and the full 2-review rule applies. The source file itself is reviewed once, in the playbook. Decided by the repo owner, 2026-10-20.
+- **If `two-reviews` is required in a repo,** it will still block a sync PR that has only one review. Exempt the sync PRs there, or post a second comment.
 
 ## The two-reviews check
 
