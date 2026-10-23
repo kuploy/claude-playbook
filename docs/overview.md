@@ -27,11 +27,20 @@ PR   ──▶ 2 reviews (4-line block) ──▶ writer merges
 thread ─▶ only its owner reports to you
 ```
 
-| Rule | Enforced now? |
-|---|---|
-| One writer per repo | No. Needs per-repo tokens. |
-| 2 reviews with the block | No. The `two-reviews` check is written, not live (Actions quota). |
-| Never hold a finished review, one-line messages, thread owner reports | No. Account prompt only. |
+**Enforced** = the system refuses. **Convention** = a template makes the right thing the easy path. **Willpower** = only the rule in the prompt.
+
+| Rule | Level | By what |
+|---|---|---|
+| One writer per repo | Willpower | Needs per-repo tokens (not set up) |
+| 2 reviews before merge | Enforced once live | `two-reviews` check plus the guard hook. Check is written, not live (Actions quota). |
+| A review says what was run | Enforced once live | The check needs `Ran:` and `Would catch:` |
+| Never create a new branch without asking | Enforced (asks) | Guard hook, once the sync PRs are merged |
+| Only the release owner releases | Enforced | Guard hook, once the sync PRs are merged |
+| Context size | Enforced | `autoCompactWindow` |
+| Cheapest model that fits | Convention | `chore` agent. The main session's model is set in settings. |
+| Never hold a finished review | Willpower | Prompt |
+| Reviews on the PR, one-line messages, thread owner reports, message only when done, blocked or wrong | Willpower | Prompt |
+| Finish or archive done sessions, push before walking away | Willpower | Prompt |
 
 Repo-specific ownership stays in each repo's CLAUDE.md.
 
@@ -39,7 +48,7 @@ Repo-specific ownership stays in each repo's CLAUDE.md.
 
 - **GitHub** (rulesets, CODEOWNERS, required checks) is what refuses things. Not third-party.
 - **[policy-bot](https://github.com/palantir/policy-bot/blob/v1.34.1/README.md)** (open source) can count reviews. Not tested with plain comments.
-- **Claude Code hooks** (`claude/hooks/guard.py`) refuse or ask on: new branches, release commands, merges without `two-reviews`. Only where the settings are installed. See [how-it-works.md](how-it-works.md#the-guard-hook).
+- **Claude Code hooks** (`claude/hooks/guard.py`) refuse or ask on: new branches, release commands, merges without `two-reviews`. Installed per repo in `.claude/` by the sync, so desktop and cloud sessions both get it. See [how-it-works.md](how-it-works.md#the-guard-hook).
 - **Nothing** enforces how a session talks or how old it gets. Only `autoCompactWindow` limits the age.
 
 Details of the sync and the review check: [how-it-works.md](how-it-works.md).

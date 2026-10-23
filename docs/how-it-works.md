@@ -14,8 +14,8 @@
 | `sync/two-reviews.yml` | `.github/workflows/two-reviews.yml` in each repo | GitHub Actions | sync Action |
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once |
-| `claude/hooks/guard.py` | stays in your `~/claude-playbook` clone | Claude Code, before tool calls | nobody (settings point at it) |
-| `rules/collaboration.md` | nowhere | people, as a reference | nobody |
+| `sync/claude-settings.json` | `.claude/settings.json` in each repo | Claude Code (desktop and cloud), at session start | sync Action |
+| `claude/hooks/guard.py` | `.claude/hooks/guard.py` in each repo | Claude Code, before tool calls | sync Action |
 | `rules/account-instructions.md` | nowhere | people: backup of the account prompt | nobody |
 
 ## The sync Action
@@ -80,14 +80,19 @@ Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in 
 | Only the release owner releases | **Denies** `docker/release.sh`, `docker/build.sh` and `release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, and `kubectl` write verbs. A session started with `CLAUDE_RELEASE_OWNER=1` is exempt. |
 | 2 reviews before merge | On `gh pr merge` and the GitHub merge tool: **allows** if the `two-reviews` status is green, **denies** if it exists and isn't, **asks** if it's missing or can't be checked (needs `gh` logged in). |
 
-**Self-test** (should print a JSON `"ask"`):
+**Where it lives:** in each repo, as `.claude/settings.json` (the hook entry) and `.claude/hooks/guard.py`, copied by the sync. The command uses `$CLAUDE_PROJECT_DIR` so the path works on any machine. Repo-level, so desktop and cloud sessions read the same files. A new repo needs nothing but a line in `.github/sync.yml`.
+
+**The release owner:** the session that runs `docker/release.sh` must be started with `CLAUDE_RELEASE_OWNER=1`, or the guard denies it.
+
+**Self-test** (should print a JSON `"ask"`), from a repo that has the files:
 ```sh
-echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | python3 ~/claude-playbook/claude/hooks/guard.py
+echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | python3 .claude/hooks/guard.py
 ```
 Then in a fresh session, ask it to run `git checkout -b test`. You should get a prompt.
 
 **When it does not protect you:**
-- The hook only runs where it's configured: your Mac's `~/.claude/settings.json` (merge `claude/settings.json`), or a repo's `.claude/settings.json` for cloud sessions. Changes apply to sessions started afterwards.
+- The hook only runs in a repo that has the files merged. Changes apply to sessions started afterwards. A repo with its own `.claude/settings.json`: merge the hook entry by hand and remove that repo from the settings entry in `.github/sync.yml`.
+- Not yet verified that cloud sessions run repo-level hooks. Test it once with the canary above (ask a fresh cloud session to run `git checkout -b canary`).
 - A wrong script path doesn't block anything. The tool call just goes ahead. Run the self-test after setup.
 - It matches command text. An unusual command (`git update-ref`, a script that runs git) gets past it.
 - `git push -u` also asks for an existing branch. That is the price of catching a new one.
@@ -103,6 +108,7 @@ scripts/copy-by-hand.sh --list                       # what it would use, change
 scripts/copy-by-hand.sh --dry-run --only pull_request_template
 scripts/copy-by-hand.sh --only pull_request_template # do it: one draft PR per repo
 scripts/copy-by-hand.sh --only pull_request_template ceduth/roadprep   # just these repos
+scripts/copy-by-hand.sh --only .claude              # the guard hook files
 ```
 
 - **Needs:** SSH access to the repos, and the `gh` CLI. Without `gh` it pushes the branch and tells you which PRs to open by hand.

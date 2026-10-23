@@ -23,6 +23,7 @@ Work on the branch already checked out. Don't create, switch to or push a new br
 ## Git defaults (a repo's CLAUDE.md overrides)
 
 Branch off `dev`, never `main`. PR into `dev`. Promote `dev` → `main` only when I ask.
+Land PRs with a merge commit once green and reviewed. After a promotion I asked for, fast-forward `dev` to `main` so they stay equal.
 
 ## Checking before claiming
 
