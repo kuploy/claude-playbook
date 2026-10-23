@@ -15,6 +15,7 @@
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once |
 | `rules/collaboration.md` | nowhere | people, as a reference | nobody |
+| `rules/account-instructions.md` | nowhere | people: backup of the account prompt | nobody |
 
 ## The sync Action
 

@@ -1,12 +1,11 @@
 # Playbook
 
-Files that tools read, plus a reference copy of the collaboration rules. The rules sessions follow live in the Claude account settings, not here.
+Rules and files that keep Claude sessions consistent across repos.
 
-How it all fits, and how to use each file: [docs/how-it-works.md](docs/how-it-works.md).
+```
+repo ──▶ one writer        PR ──▶ 2 reviews ──▶ writer merges
+```
 
-| Path | What |
-|---|---|
-| `sync/` | Files copied into other repos by the sync Action. |
-| `claude/` | Agents and settings for `~/.claude/` on each machine. |
-| `rules/collaboration.md` | Reference copy of the collaboration rules. |
-| `.github/` | This repo's own sync config and workflow. |
+- [docs/overview.md](docs/overview.md): getting peers onto the rules, who owns what
+- [docs/how-it-works.md](docs/how-it-works.md): sync, review check, per-machine setup
+- [rules/account-instructions.md](rules/account-instructions.md): backup copy of the account prompt
