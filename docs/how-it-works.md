@@ -64,11 +64,11 @@ Would catch: <what that would have caught>
 ## Per machine, once
 
 ```sh
-git clone git@github.com:ceduth/claude-playbook.git ~/claude-playbook
-ln -s ~/claude-playbook/claude/agents ~/.claude/agents
+git clone git@github.com:ceduth/claude-playbook.git ~/Devl/Projects/claude-playbook
+ln -s ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents
 ```
 
-Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in the clone updates the agents.
+Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in the clone updates the agents. If you cloned elsewhere before, move it and recreate the symlink: `mv ~/claude-playbook ~/Devl/Projects/ && ln -sfn ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents`.
 
 ## The guard hook
 
@@ -103,7 +103,7 @@ Then in a fresh session, ask it to run `git checkout -b test`. You should get a 
 `scripts/copy-by-hand.sh` does the sync Action's job from your terminal. It reads the same `.github/sync.yml`.
 
 ```sh
-cd ~/claude-playbook
+cd ~/Devl/Projects/claude-playbook
 scripts/copy-by-hand.sh --list                       # what it would use, changes nothing
 scripts/copy-by-hand.sh --dry-run --only pull_request_template
 scripts/copy-by-hand.sh --only pull_request_template # do it: one draft PR per repo
