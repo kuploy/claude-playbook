@@ -45,7 +45,7 @@ git -C "$here" pull -q --ff-only 2>/dev/null || true   # use the latest playbook
 
 for r in "${repos[@]}"; do
   (
-    d=$(mktemp -d) && git clone -q "git@github.com:$r.git" "$d" && cd "$d" || { echo "$r: clone failed"; exit 1; }
+    d=$(mktemp -d) && git clone -q --depth 1 --no-single-branch "git@github.com:$r.git" "$d" && cd "$d" || { echo "$r: clone failed"; exit 1; }
     # same rule as the repos' CLAUDE.md: branch off dev when it exists, else the default branch
     base=$(git ls-remote --heads origin dev | grep -q 'refs/heads/dev' && echo dev || git rev-parse --abbrev-ref HEAD)
     branch="playbook/sync-$(date +%Y%m%d)"
