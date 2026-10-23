@@ -1,5 +1,15 @@
 {
   "model": "sonnet",
   "autoCompactWindow": 250000,
-  "maxEffortLevel": "medium"
+  "maxEffortLevel": "medium",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__github__create_branch|mcp__github__merge_pull_request",
+        "hooks": [
+          { "type": "command", "command": "python3 ~/claude-playbook/claude/hooks/guard.py" }
+        ]
+      }
+    ]
+  }
 }

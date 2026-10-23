@@ -14,6 +14,7 @@
 | `sync/two-reviews.yml` | `.github/workflows/two-reviews.yml` in each repo | GitHub Actions | sync Action |
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once |
+| `claude/hooks/guard.py` | stays in your `~/claude-playbook` clone | Claude Code, before tool calls | nobody (settings point at it) |
 | `rules/collaboration.md` | nowhere | people, as a reference | nobody |
 | `rules/account-instructions.md` | nowhere | people: backup of the account prompt | nobody |
 
@@ -68,6 +69,29 @@ ln -s ~/claude-playbook/claude/agents ~/.claude/agents
 ```
 
 Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in the clone updates the agents.
+
+## The guard hook
+
+`claude/hooks/guard.py` runs before a tool call and can refuse it. Claude Code runs it, not the model, so the model can't skip it.
+
+| Rule | What it does |
+|---|---|
+| Never create a new branch without asking | **Asks you** on `git checkout -b`, `git switch -c`, `git branch <name>`, `git worktree add -b`, `git push -u`, and the GitHub create-branch tool. |
+| Only the release owner releases | **Denies** `docker/release.sh`, `docker/build.sh` and `release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, and `kubectl` write verbs. A session started with `CLAUDE_RELEASE_OWNER=1` is exempt. |
+| 2 reviews before merge | On `gh pr merge` and the GitHub merge tool: **allows** if the `two-reviews` status is green, **denies** if it exists and isn't, **asks** if it's missing or can't be checked (needs `gh` logged in). |
+
+**Self-test** (should print a JSON `"ask"`):
+```sh
+echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | python3 ~/claude-playbook/claude/hooks/guard.py
+```
+Then in a fresh session, ask it to run `git checkout -b test`. You should get a prompt.
+
+**When it does not protect you:**
+- The hook only runs where it's configured: your Mac's `~/.claude/settings.json` (merge `claude/settings.json`), or a repo's `.claude/settings.json` for cloud sessions. Changes apply to sessions started afterwards.
+- A wrong script path doesn't block anything. The tool call just goes ahead. Run the self-test after setup.
+- It matches command text. An unusual command (`git update-ref`, a script that runs git) gets past it.
+- `git push -u` also asks for an existing branch. That is the price of catching a new one.
+- Tested with a fake `gh` only. Not yet run inside a real session.
 
 ## When Actions minutes run out
 
