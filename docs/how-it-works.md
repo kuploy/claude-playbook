@@ -92,11 +92,11 @@ Then in a fresh session, ask it to run `git checkout -b test`. You should get a 
 
 **When it does not protect you:**
 - The hook only runs in a repo that has the files merged. Changes apply to sessions started afterwards. A repo with its own `.claude/settings.json`: merge the hook entry by hand and remove that repo from the settings entry in `.github/sync.yml`.
-- Not yet verified that cloud sessions run repo-level hooks. Test it once with the canary above (ask a fresh cloud session to run `git checkout -b canary`).
+- Desktop sessions: not yet tested. Run the canary above in a fresh desktop session on a repo that has the files.
 - A wrong script path doesn't block anything. The tool call just goes ahead. Run the self-test after setup.
 - It matches command text. An unusual command (`git update-ref`, a script that runs git) gets past it.
 - `git push -u` also asks for an existing branch. That is the price of catching a new one.
-- Tested with a fake `gh` only. Not yet run inside a real session.
+- **Verified in a cloud session** (ariselabs.co, 2026-10-23): `echo docker/release.sh` was denied with the rule message, and `git checkout -b` raised an approval request. `$CLAUDE_PROJECT_DIR` resolved and `python3` was present. The merge rule is only tested with a fake `gh`; it has not run inside a real session.
 
 ## When Actions minutes run out
 
