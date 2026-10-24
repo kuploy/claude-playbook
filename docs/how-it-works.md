@@ -2,7 +2,7 @@
 
 ## The picture
 
-- **Rules the model follows** live in your Claude account settings. One home. This repo does not hold them.
+- **Rules the model follows** live in `rules/account-instructions.md`. Desktop sessions import it from `~/.claude/CLAUDE.md`. Cloud sessions read the same text pasted into the Claude account settings.
 - **This repo holds files that tools read.** A robot copies them into your other repos.
 - Nothing here is read by a session unless it is copied somewhere first.
 
@@ -16,7 +16,7 @@
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once |
 | `sync/claude-settings.json` | `.claude/settings.json` in each repo | Claude Code (desktop and cloud), at session start | sync Action |
 | `claude/hooks/guard.py` | `.claude/hooks/guard.py` in each repo | Claude Code, before tool calls | sync Action |
-| `rules/account-instructions.md` | nowhere | people: backup of the account prompt | nobody |
+| `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
 ## The sync Action
 
