@@ -88,11 +88,11 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 - When you open a PR, write "Review requested from:" in its body with two reviewers who are not you and not the repo's writer. Find them with list_sessions (skip archived ones). If fewer than two exist, ask me whether to spawn a short-lived reviewer session. Nudge each reviewer with one line and the PR link.
 - Keep a PR body to 15 lines: what changed, why, how you verified it, reviewers. Detail goes in commits or a linked file.
 - After you nudge reviewers, subscribe to the PR and end your turn. Don't poll, and don't nudge twice.
-  Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR — check `ccd_pr get_status` and
-  treat `monitor.address_comments: true` as subscribed, since it relays review comments and CI as
-  events. Already subscribed means a second nudge is never necessary. If you can't subscribe, tell
-  me you're waiting and on whom.
-- Never hold a finished review. Post it on the PR, then message the author one line and the link. Skip the message only if the author said it is subscribed.
+  Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR. It relays CI and formal reviews,
+  but NOT plain PR comments, so a desktop author can miss a review posted as a comment. If you
+  can't subscribe, tell me you're waiting and on whom.
+- Never say a PR is waiting on review without reading its comments in that same turn.
+- Never hold a finished review. Post it on the PR, then message the author one line and the link. Always, even if the author says it is subscribed.
 - Reviews live on the PR. After posting, your chat output is the verdict and the PR link only. No recap of what you did.
 - Only the session that owns a thread reports to me. Not every reviewer, every round. Report in 3 lines: status, what needs me, the link. Don't paste a review back to me.
 - Don't re-verify a peer's claim unless it's load-bearing and cheap.
