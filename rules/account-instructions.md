@@ -86,7 +86,11 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
   After the block: at most 5 one-line findings. Anything longer goes in a file, linked from the comment.
 - A PR that only copies files from the playbook needs one check, not two reviews: the file's hash matches the source. Any difference, and the full rule applies.
 - When you open a PR, write "Review requested from:" in its body with two reviewers who are not you and not the repo's writer. Find them with list_sessions (skip archived ones). If fewer than two exist, ask me whether to spawn a short-lived reviewer session. Nudge each reviewer with one line and the PR link.
-- After you nudge reviewers, subscribe to the PR if you can (cloud: subscribe_pr_activity) and end your turn. Don't poll. If you can't subscribe, tell me you're waiting and on whom.
+- After you nudge reviewers, subscribe to the PR and end your turn. Don't poll, and don't nudge twice.
+  Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR — check `ccd_pr get_status` and
+  treat `monitor.address_comments: true` as subscribed, since it relays review comments and CI as
+  events. Already subscribed means a second nudge is never necessary. If you can't subscribe, tell
+  me you're waiting and on whom.
 - Never hold a finished review. Post it on the PR, then message the author one line and the link.
 - Reviews live on the PR. After posting, your chat output is the verdict and the PR link only. No recap of what you did.
 - Only the session that owns a thread reports to me. Not every reviewer, every round. Report in 3 lines: status, what needs me, the link. Don't paste a review back to me.
