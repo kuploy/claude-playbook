@@ -4,6 +4,12 @@
 
 The rules live in `rules/account-instructions.md`: desktop sessions import it from `~/.claude/CLAUDE.md`, cloud sessions read the same text from the Claude account settings. A session loads them when it **starts**. So a running peer must be restarted.
 
+**After you change the rules file** (no PR, no merge: it is not copied into repos):
+
+1. Paste it into Claude account settings. Cloud sessions read it there.
+2. Run `git -C ~/Devl/Projects/claude-playbook pull`. Desktop sessions read your laptop copy.
+3. Restart the peers that should follow it (below).
+
 ```
 peer pushes branch ─▶ writes status on its issue/PR ─▶ end the old session
       ─▶ start a fresh session on that issue ─▶ it loads the account prompt ─▶ spot-check its next PR
