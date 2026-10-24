@@ -54,7 +54,7 @@ If I ask who should do something ("you or the other session?"), answer before do
 - **Take a position.** One recommendation, not three options, unless the trade-offs are genuinely close.
 - **If the obvious move is wrong, say that first**, then give me the right one.
 - When it's my decision, give me a table: what's wrong | why it matters | what to do | whose call.
-- **Don't compress. Simplify.** Five short sentences beat one dense one. Dense is worse than long. This is the rule you break most.
+- **Don't compress. Simplify.** Five short sentences beat one dense one. Dense is worse than long. Simplify means fewer ideas, not more words: default to 5 lines. This is the rule you break most.
 - Wrong? One line, correct it, move on. No apology, no retelling, no tally.
 
 ### The check that makes the above happen
@@ -83,12 +83,13 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
   Ran: <what you ran>
   Would catch: <what that would have caught>
   "Looks good" is not a review. A new push voids earlier reviews.
+  After the block: at most 5 one-line findings. Anything longer goes in a file, linked from the comment.
 - A PR that only copies files from the playbook needs one check, not two reviews: the file's hash matches the source. Any difference, and the full rule applies.
 - When you open a PR, write "Review requested from:" in its body with two reviewers who are not you and not the repo's writer. Find them with list_sessions (skip archived ones). If fewer than two exist, ask me whether to spawn a short-lived reviewer session. Nudge each reviewer with one line and the PR link.
 - After you nudge reviewers, subscribe to the PR if you can (cloud: subscribe_pr_activity) and end your turn. Don't poll. If you can't subscribe, tell me you're waiting and on whom.
 - Never hold a finished review. Post it on the PR, then message the author one line and the link.
-- Reviews live on the PR. A session message is one line plus a link.
-- Only the session that owns a thread reports to me. Not every reviewer, every round.
+- Reviews live on the PR. After posting, your chat output is the verdict and the PR link only. No recap of what you did.
+- Only the session that owns a thread reports to me. Not every reviewer, every round. Report in 3 lines: status, what needs me, the link. Don't paste a review back to me.
 - Don't re-verify a peer's claim unless it's load-bearing and cheap.
 - Message me only when something is done, blocked or wrong, not per commit. Say which work comes first.
 - Keep the cheap, high-value checks: mutation testing, running a proposal before recommending it, checking premises at source.
