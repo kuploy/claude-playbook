@@ -18,20 +18,14 @@
 | `claude/hooks/guard.py` | `.claude/hooks/guard.py` in each repo | Claude Code, before tool calls | sync Action |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
-## The sync Action
+## The sync Action (disabled)
 
-[repo-file-sync-action](https://github.com/BetaHuhn/repo-file-sync-action), set up in `.github/workflows/sync.yml` and `.github/sync.yml`.
-
-1. You push to `main` here.
-2. The Action reads `.github/sync.yml`: which files go to which repos.
-3. For each repo where the file is missing or different, it opens a PR there.
-4. You merge that PR. Done.
+[repo-file-sync-action](https://github.com/BetaHuhn/repo-file-sync-action) copies the files in `.github/sync.yml` into the other repos as PRs. It is switched off (Actions minutes). Use `scripts/copy-by-hand.sh` instead (below).
 
 - **New repo:** add its name to `.github/sync.yml`.
-- **A repo wants its own version of a file:** merge once, then remove that repo from the list for that file. After that the file belongs to the repo.
-- **Token:** add a repo secret `SYNC_TOKEN` (a PAT that can write contents and PRs on the target repos). A fine-grained PAT covers one owner only. You have three (`kuploy`, `ceduth`, `leeram-hq`), so use a classic PAT with `repo` scope, or one token and one step per owner. Until the secret exists, the sync run fails. That is expected.
-- **Review rule for sync PRs (exception to the 2-review rule).** A PR that only copies files from the playbook needs one check: the file's git blob hash matches the playbook's (`git hash-object sync/<file>`). Post it as a review comment, once. No second review. Any difference from the source, and the full 2-review rule applies. The source file itself is reviewed once, in the playbook. Decided by the repo owner, 2026-10-20.
-- **If `two-reviews` is required in a repo,** it will still block a sync PR that has only one review. Exempt the sync PRs there, or post a second comment.
+- **A repo wants its own version of a file:** merge once, then remove that repo from the list for that file.
+- **Sync PRs need one check, not two reviews:** the file's blob hash matches the playbook (`git hash-object sync/<file>`). Post it once as a comment. Any difference, and the 2-review rule applies. (Owner decision, 2026-10-20.)
+- **If the Action is turned on again:** it needs a `SYNC_TOKEN` secret (classic PAT, `repo` scope; you have three owners).
 
 ## The two-reviews check
 
@@ -71,7 +65,7 @@ Cloud sessions get these from my Claude account settings. Desktop sessions get t
 @~/Devl/Projects/claude-playbook/rules/account-instructions.md
 ```
 
-Desktop sessions did not get the account-settings prompt (checked on a desktop session, 2026-10-24). Then check in a **new** desktop session that it knows the "Sessions and quota" section.
+Desktop sessions did not get the account-settings prompt (checked 2026-10-24). Check in a **new** desktop session that it knows the "Sessions and quota" section. Done once: passed.
 
 ```sh
 git clone git@github.com:ceduth/claude-playbook.git ~/Devl/Projects/claude-playbook
