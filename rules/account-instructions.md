@@ -88,8 +88,8 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 - When you open a PR, write "Review requested from:" in its body with two reviewers who are not you and not the repo's writer. Find them with list_sessions (skip archived ones). If fewer than two exist, ask me whether to spawn a short-lived reviewer session. Nudge each reviewer with one line and the PR link.
 - Keep a PR body to 15 lines: what changed, why, how you verified it, reviewers. Detail goes in commits or a linked file.
 - After you nudge reviewers, subscribe to the PR and end your turn. Don't poll, and don't nudge twice.
-  Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR. It relays CI and formal reviews,
-  but NOT plain PR comments, so a desktop author can miss a review posted as a comment. If you
+  Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR. It missed two plain-comment
+  reviews on kuploy-docs#235 (24 Oct), so don't count on it to wake you for a review. If you
   can't subscribe, tell me you're waiting and on whom.
 - Never say a PR is waiting on review without reading its comments in that same turn.
 - Never hold a finished review. Post it on the PR, then message the author one line and the link. Always, even if the author says it is subscribed.
