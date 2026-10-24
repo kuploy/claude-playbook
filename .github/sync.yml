@@ -16,6 +16,7 @@ group:
     ceduth/ariselabs.co
     ceduth/roadprep
     leeram-hq/business
+    ceduth/claude-agent-console
   files:
     - source: sync/pull_request_template.md
       dest: .github/pull_request_template.md
