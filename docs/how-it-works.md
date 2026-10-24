@@ -63,6 +63,16 @@ Would catch: <what that would have caught>
 
 ## Per machine, once
 
+To give **desktop** sessions the rules, make `~/.claude/CLAUDE.md` contain:
+
+```
+# Working instructions
+Cloud sessions get these from my Claude account settings. Desktop sessions get them from the playbook file below.
+@~/Devl/Projects/claude-playbook/rules/account-instructions.md
+```
+
+Desktop sessions did not get the account-settings prompt (checked on a desktop session, 2026-10-24). Then check in a **new** desktop session that it knows the "Sessions and quota" section.
+
 ```sh
 git clone git@github.com:ceduth/claude-playbook.git ~/Devl/Projects/claude-playbook
 ln -s ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents

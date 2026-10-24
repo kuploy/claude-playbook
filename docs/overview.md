@@ -2,7 +2,7 @@
 
 ## Getting a peer onto the rules
 
-The rules live in the Claude account settings. A session loads them when it **starts**. So a running peer must be restarted.
+The rules live in `rules/account-instructions.md`: desktop sessions import it from `~/.claude/CLAUDE.md`, cloud sessions read the same text from the Claude account settings. A session loads them when it **starts**. So a running peer must be restarted.
 
 ```
 peer pushes branch ─▶ writes status on its issue/PR ─▶ end the old session
