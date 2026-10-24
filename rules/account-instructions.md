@@ -85,7 +85,8 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
   "Looks good" is not a review. A new push voids earlier reviews.
 - A PR that only copies files from the playbook needs one check, not two reviews: the file's hash matches the source. Any difference, and the full rule applies.
 - When you open a PR, write "Review requested from:" in its body with two reviewers who are not you and not the repo's writer. Find them with list_sessions (skip archived ones). If fewer than two exist, ask me whether to spawn a short-lived reviewer session. Nudge each reviewer with one line and the PR link.
-- Never hold a finished review. Post it and reply to the peer with the result.
+- After you nudge reviewers, subscribe to the PR if you can (cloud: subscribe_pr_activity) and end your turn. Don't poll. If you can't subscribe, tell me you're waiting and on whom.
+- Never hold a finished review. Post it on the PR, then message the author one line and the link.
 - Reviews live on the PR. A session message is one line plus a link.
 - Only the session that owns a thread reports to me. Not every reviewer, every round.
 - Don't re-verify a peer's claim unless it's load-bearing and cheap.
