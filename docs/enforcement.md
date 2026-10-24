@@ -1,36 +1,53 @@
 # What is enforced
 
-**Enforced** = the system refuses or asks. **Convention** = a template makes the right thing easy. **Willpower** = only the prompt says so.
+**Enforced** = the system refuses or asks. **Best effort** = catches the usual cases, can be sidestepped. **Convention** = a template makes the right thing easy. **Willpower** = only the prompt says so.
 
-## Rules and their gate
-| Rule | Level | Gate | Status |
-|---|---|---|---|
-| No new branch without asking | Enforced (asks you) | Guard hook `.claude/hooks/guard.py` | Tested on cloud and desktop |
-| Only the release owner releases | Enforced (denies) | Guard hook + `CLAUDE_RELEASE_OWNER=1` | Tested on cloud and desktop |
-| 2 reviews before merge | Enforced once live | `two-reviews` status check + guard hook on merge | **Not live**: Actions quota. Merge rule only tested with a fake `gh`. |
-| A review has the 4-line block | Enforced once live | Same `two-reviews` check | Not live |
-| One writer per repo | Willpower | None. Needs per-repo tokens. | Not built |
-| Context size | Enforced on desktop only | `autoCompactWindow` in `~/.claude/settings.json` | Cloud has no such file: it uses the default (about 784k tokens) |
-| Cheapest model that fits | Convention | `chore` agent, model set in settings | Desktop only |
-| Never hold a finished review, one-line messages, thread owner reports, archive done sessions | Willpower | Account prompt | See below |
-| Sync PRs need one hash check, not two reviews | Convention | Documented exception | Recorded in [how-it-works.md](how-it-works.md) |
+## Guard hook (`.claude/hooks/guard.py`, in all 13 repos on their working branch)
+| What | Level | Status |
+|---|---|---|
+| New branch: **asks you** on `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u`, GitHub create-branch | Best effort (matches command text) | Tested cloud and desktop, Manual mode. Bypass and Auto modes untested. |
+| Release, build, cluster writes: **denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` write verbs, unless `CLAUDE_RELEASE_OWNER=1` | Enforced for those commands. An unusual command gets past. | Tested cloud and desktop |
+| Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't, **asks** if missing or unchecked | Enforced once the check is live | Only tested with a fake `gh`. Today it always asks. |
+| Bad input, a crash or a wrong script path | **Fails open**: no guard, no error | Known gap. Run the self-test after setup. |
+| Repos without the `.claude/` files | No guard | kuploy-cloud has them on `dev`, not `main`. Other repos: none. |
 
-The guard hook is installed in all 13 repos on their working branch. kuploy-cloud has it on `dev`, not yet on `main`.
+## Checks, GitHub, tooling
+| What | Level | Status |
+|---|---|---|
+| `two-reviews` check: two different `Reviewer:` blocks after the last push, from people with write access | Enforced once live | **Not live**: Actions quota. Not marked required in any ruleset. Trusts the `Reviewer:` name and not the `Ran:` text. |
+| Rulesets, CODEOWNERS, required reviews | None | Not set up |
+| One writer per repo | Willpower | Needs per-repo tokens. Not built. |
+| PR template with the 4-line review block (13 repos) | Convention | Merged. Applies from each repo's default branch. |
+| Sync-only PRs need one hash check, not two reviews | Convention | Recorded in [how-it-works.md](how-it-works.md) |
+| Sync Action (copies files to repos) | Tooling | **Disabled**: quota. Use `scripts/copy-by-hand.sh`. |
+| Release gate in kuploy-cloud (`dev` = `main`, core checked by hand) | Willpower, partly `release.sh` | In its CLAUDE.md. `release.sh` ref-locks cloud and only prints core's sha. |
+
+## Prompt, settings, habits
+| What | Level | Status |
+|---|---|---|
+| Account prompt: new cloud session | Willpower (it is text) | Loads. Tested. |
+| Account prompt: new desktop session | Willpower | **Does not load.** Fix: `~/.claude/CLAUDE.md` imports the playbook file. Card queued, not yet verified. |
+| Account prompt: session already running | Willpower | Untested. Start a new session. |
+| Per-repo CLAUDE.md (read code first, no new branch, git workflow) | Willpower | Loads in sessions started in that repo |
+| Reviewer discovery bullet (`Review requested from:`, `list_sessions`) | Willpower | In the rules file. **Not yet pasted into account settings.** Template line not added. |
+| `autoCompactWindow` 250000 on **desktop** | Enforced | From `~/.claude/settings.json` |
+| `autoCompactWindow` on **cloud** | Enforced when read | Cloud has no user settings, so it used the default (about 784k). **A repo `.claude/settings.json` works** (tested: threshold 184k, source "settings"). Rollout to the 13 repos pending. |
+| Default model and effort | Convention | Desktop only. Cloud sessions are set when started. |
+| `chore` Haiku agent | Convention | Main session decides to delegate. Untested. |
+| Archive done sessions, push before leaving, one-line messages, thread owner reports, restart peers after a rule change | Willpower | About ten old idle sessions exist |
 
 ## What a session reads (tested 2026-10-23/24)
 | | Cloud | Desktop |
 |---|---|---|
-| Account prompt, new session | **Yes** | **No.** Use the `~/.claude/CLAUDE.md` import. |
-| `~/.claude/CLAUDE.md` is loaded | n/a | Yes (a session quoted it) |
-| Account prompt through that import | n/a | To verify in a new session |
-| Account prompt, session already running | Untested | Untested |
-| Hook files appear in a running session | **Load live** | **Load live** |
-| A new session sees the repo's `.claude/` files | Yes | Yes, after `git pull` |
+| Account prompt, new session | **Yes** | **No** |
+| `~/.claude/CLAUDE.md` loaded | n/a | Yes (a session quoted it) |
+| Repo `.claude/settings.json` (hooks, `autoCompactWindow`) | Yes | Yes |
+| Hook files added to a running session | **Load live** | **Load live** |
 
-`/hooks` works only in a terminal session, not in the desktop app.
+`/hooks` works only in a terminal session.
 
 ## `CLAUDE_RELEASE_OWNER=1`
-The guard denies `docker/release.sh`, `docker/build.sh` and `release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, and `kubectl` write commands. A session with `CLAUDE_RELEASE_OWNER=1` in its environment is exempt.
+The guard denies release commands for every session except one with this in its environment.
 
 | | |
 |---|---|
@@ -39,9 +56,3 @@ The guard denies `docker/release.sh`, `docker/build.sh` and `release.sh` in kupl
 | When it takes effect | At session start. Start a **new** session after editing. |
 | Terminal alternative | `CLAUDE_RELEASE_OWNER=1 claude` exempts one process. |
 | Proof | Non-owner cloud session on kuploy-cloud: **refused**. New desktop session in the release folder: **printed**. A same-folder control run was not done. |
-
-## Gaps
-- `two-reviews` is written but not live, because of the Actions quota.
-- One writer per repo has no gate.
-- Sessions already running when the rules change: account-prompt behaviour is untested. Start a new session.
-- The hook matches command text. An unusual command gets past it.
