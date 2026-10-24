@@ -41,7 +41,10 @@ Would catch: <what that would have caught>
 ```
 
 - Two different `Reviewer:` names, each with all four lines.
-- Counts only after the last push. A new push voids old reviews.
+- Counts only after the last push. A new push voids old reviews. "The push" is when GitHub
+  received the head (earliest check suite for the sha), not when it was committed — a commit
+  held locally for an hour would otherwise count reviews written during that hour. With no
+  check suites it falls back to the committer date.
 - A reviewer's latest comment wins.
 - Only people with write access count.
 - Result: a commit status `two-reviews` on the PR head (`success` at 2, else `pending`).

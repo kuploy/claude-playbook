@@ -15,6 +15,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+  checks: read          # listSuitesForRef, to get the time the head was pushed
   statuses: write
 
 concurrency:
@@ -33,8 +34,27 @@ jobs:
             const number = context.payload.pull_request?.number ?? context.payload.issue.number;
 
             const pr = (await github.rest.pulls.get({ owner, repo, pull_number: number })).data;
+            // "After the last push" needs the time GitHub RECEIVED the head, not the
+            // time it was committed. Those differ by however long the author sat on it
+            // before pushing, and a verdict written in that window would otherwise count
+            // although it never saw the pushed head — failing permissively, which is the
+            // wrong direction for a gate. A check suite is created when the sha arrives,
+            // so the earliest one is a usable push time. Falls back to the committer date
+            // when there are none (no Actions on the repo, or the API is unavailable),
+            // which is the old behaviour and never stricter than it.
             const head = await github.rest.repos.getCommit({ owner, repo, ref: pr.head.sha });
-            const since = new Date(head.data.commit.committer.date);
+            let since = new Date(head.data.commit.committer.date);
+            try {
+              const suites = await github.paginate(github.rest.checks.listSuitesForRef,
+                { owner, repo, ref: pr.head.sha, per_page: 100 });
+              const seen = suites
+                .map(s => new Date(s.created_at))
+                .filter(d => !Number.isNaN(d.getTime()))
+                .sort((a, b) => a - b)[0];
+              if (seen && seen > since) since = seen;
+            } catch (e) {
+              core.info(`two-reviews: no check suites for ${pr.head.sha} (${e.message}); using the committer date`);
+            }
 
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
             const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: number, per_page: 100 });
