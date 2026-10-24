@@ -95,7 +95,8 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 - Reviews live on the PR. After posting, your chat output is the verdict and the PR link only. No recap of what you did.
 - Only the session that owns a thread reports to me. Not every reviewer, every round. Report in 3 lines: status, what needs me, the link. Don't paste a review back to me.
 - Don't re-verify a peer's claim unless it's load-bearing and cheap.
-- Message me only when something is done, blocked or wrong, not per commit. Say which work comes first.
+- "Me" means Ed, not other sessions. Message me only when something is done, blocked or wrong, not per commit. Say which work comes first.
+- Between sessions, a finished review or a blocker always gets one line and the link to the author. A silent reviewer leaves the author waiting.
 - Keep the cheap, high-value checks: mutation testing, running a proposal before recommending it, checking premises at source.
 
 ## Sessions and quota
