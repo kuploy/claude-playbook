@@ -102,11 +102,11 @@ Then run the canary test below in a fresh session.
 
 **When it does not protect you:**
 - The hook only runs in a repo that has the files merged. Changes apply to sessions started afterwards. A repo with its own `.claude/settings.json`: merge the hook entry by hand and remove that repo from the settings entry in `.github/sync.yml`.
-- Desktop sessions: not yet tested. Run the canary above in a fresh desktop session on a repo that has the files.
+- Results by session type and the release-owner setting: [enforcement.md](enforcement.md).
 - A wrong script path doesn't block anything. The tool call just goes ahead. Run the self-test after setup.
 - It matches command text. An unusual command (`git update-ref`, a script that runs git) gets past it.
 - `git push -u` also asks for an existing branch. That is the price of catching a new one.
-- **Verified in a cloud session** (ariselabs.co, 2026-10-23): `echo docker/release.sh` was denied with the rule message, and `git checkout -b` raised an approval request. `$CLAUDE_PROJECT_DIR` resolved and `python3` was present. The merge rule is only tested with a fake `gh`; it has not run inside a real session.
+- **Verified** on a cloud session (ariselabs.co, kuploy-cloud) and a desktop session: release commands are refused, `git checkout -b` raises an approval request, and hook files added mid-session load live. `$CLAUDE_PROJECT_DIR` resolved and `python3` was present. The merge rule is only tested with a fake `gh`; it has not run inside a real session.
 
 ## Canary test (desktop or cloud)
 
@@ -127,7 +127,7 @@ Run it once per kind of session after the files land in a repo. Hooks load when 
 | 2 shows an approval prompt citing "never create a new branch" | Ask works. Click **Deny**. If you approve, delete it: `git checkout - && git branch -D canary-test`. |
 | 1 just prints `docker/release.sh` | Hook did not run. Check the trust prompt, `/hooks`, that `python3` is on the PATH, and that the session started after the pull. |
 
-Cloud result, ariselabs.co, 2026-10-23: both rows passed.
+Results: cloud (ariselabs.co) and desktop both passed.
 
 ## When Actions minutes run out
 

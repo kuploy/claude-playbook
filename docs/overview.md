@@ -27,20 +27,7 @@ PR   ──▶ 2 reviews (4-line block) ──▶ writer merges
 thread ─▶ only its owner reports to you
 ```
 
-**Enforced** = the system refuses. **Convention** = a template makes the right thing the easy path. **Willpower** = only the rule in the prompt.
-
-| Rule | Level | By what |
-|---|---|---|
-| One writer per repo | Willpower | Needs per-repo tokens (not set up) |
-| 2 reviews before merge | Enforced once live | `two-reviews` check plus the guard hook. Check is written, not live (Actions quota). |
-| A review says what was run | Enforced once live | The check needs `Ran:` and `Would catch:` |
-| Never create a new branch without asking | Enforced (asks) | Guard hook. Installed in 12 of 13 repos (kuploy-cloud pending the release-owner env var) |
-| Only the release owner releases | Enforced | Guard hook. Installed in 12 of 13 repos (kuploy-cloud pending the release-owner env var) |
-| Context size | Enforced | `autoCompactWindow` |
-| Cheapest model that fits | Convention | `chore` agent. The main session's model is set in settings. |
-| Never hold a finished review | Willpower | Prompt |
-| Reviews on the PR, one-line messages, thread owner reports, message only when done, blocked or wrong | Willpower | Prompt |
-| Finish or archive done sessions, push before walking away | Willpower | Prompt |
+Which rule is enforced, by which gate, and where it works: [enforcement.md](enforcement.md).
 
 Repo-specific ownership stays in each repo's CLAUDE.md.
 
