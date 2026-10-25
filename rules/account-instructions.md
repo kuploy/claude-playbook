@@ -104,5 +104,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 ## Sessions and quota
 
 - A session's age is its cost: context is re-billed every turn. Finish or archive done sessions. Don't leave idle ones to be woken.
+- Spawn only for a named task. Keep at most 3 live sessions you spawned; ask me before a 4th.
+- Whoever spawns a session archives it when its task ends: PR merged or review posted. The epic lead sweeps for leftovers at every status report.
 - Push the branch before walking away.
 - Use the cheapest model that fits: Haiku for mechanical chores, Sonnet by default, Opus only for design and review.

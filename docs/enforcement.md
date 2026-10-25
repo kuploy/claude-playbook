@@ -39,7 +39,7 @@
 | `autoCompactWindow` on **cloud** | Enforced when read | Cloud has no user settings, so it used the default (about 784k). **A repo `.claude/settings.json` works** (tested: threshold 184k, source "settings"). Merged in all 13 repos; not re-tested on one of them. |
 | Default model and effort | Convention | Desktop only. Cloud sessions are set when started. |
 | `chore` Haiku agent | Convention | Main session decides to delegate. Untested. |
-| Archive done sessions, push before leaving, one-line messages, thread owner reports, restart peers after a rule change | Willpower | About ten old idle sessions exist |
+| Spawn cap (3 live per spawner), spawner archives on task end, push before leaving, one-line messages, thread owner reports, restart peers after a rule change | Willpower | About ten old idle sessions exist |
 
 ## What a session reads (tested 2026-10-23/24)
 | | Cloud | Desktop |
