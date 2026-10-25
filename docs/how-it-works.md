@@ -89,7 +89,9 @@ It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (c
 - Matches command text. `git update-ref` or a script that runs git gets past it.
 - `git push -u` of a branch outside a frozen epic asks again, even if you approved its `checkout -b`.
 - The open-PR check counts PRs by the GitHub user, and all cloud sessions share yours. One writer per repo makes that right.
-- An issue number that exists in both the repo and claude-playbook uses the repo's issue first.
+- The epic home (claude-playbook) is asked only when the repo has no issue `<n>` of its own.
+- A frozen-epic branch is auto-approved only as a single command. In a compound command the normal prompt runs.
+- Silent bypasses: `bash -c`, `env git`, `/usr/bin/git`, `git push origin HEAD:<new>` without `-u`, `gh api .../git/refs`. A pushed branch with no PR doesn't count as open.
 - Branches made inside a script (like `copy-by-hand.sh`) aren't seen.
 - A wrong script path blocks nothing. Run the self-test after setup.
 - Results by session type: [enforcement.md](enforcement.md).

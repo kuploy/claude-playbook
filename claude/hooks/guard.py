@@ -27,6 +27,7 @@ import subprocess
 import sys
 
 NEW_BRANCH_MSG = "Rule: never create a new branch without asking first. Approve only if the user said so in this conversation."
+FROZEN_MSG = "Scope gate: branch for a sub-issue of an open scope:frozen epic. Approved by the freeze."
 EPIC_HOME = "ceduth/claude-playbook"   # where epics and most of their issues live
 RELEASE_MSG = ("Rule: only the release owner session runs releases, builds or cluster writes "
                "(kuploy-cloud CLAUDE.md). If you are that session, start it with CLAUDE_RELEASE_OWNER=1.")
@@ -118,7 +119,22 @@ def opened_pr(tool, inp):
 
 
 def segments(cmd):
-    return [s.strip() for s in re.split(r"&&|\|\||;|\||\n", cmd) if s.strip()]
+    """Simple commands in cmd, split on && || ; | ( ) and newlines, but not inside quotes."""
+    try:
+        lex = shlex.shlex(cmd.replace("\n", " ; "), posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        toks = list(lex)
+    except ValueError:   # e.g. a heredoc: fall back to a plain split
+        return [s.strip() for s in re.split(r"&&|\|\||;|\||\n", cmd) if s.strip()]
+    segs, cur = [], []
+    for t in toks + [";"]:
+        if set(t) <= set("&|;()"):
+            if cur:
+                segs.append(shlex.join(cur))
+            cur = []
+        else:
+            cur.append(t)
+    return segs
 
 
 def tokens(seg):
@@ -152,6 +168,10 @@ def creates_branch(sub, args):
         for i, a in enumerate(args):
             if a in CREATE_FLAGS:
                 return args[i + 1] if i + 1 < len(args) else ""
+            if a.startswith("--") and a.split("=")[0] in CREATE_FLAGS:   # --create=name
+                return a.split("=", 1)[1]
+            if re.match(r"^-[bBcC].", a):                               # -bname
+                return a[2:]
         return None
     if sub == "worktree":
         if args[:1] == ["add"] and any(a in ("-b", "-B") for a in args):
@@ -264,11 +284,13 @@ def check_new_branch(owner, repo, name):
         decide("deny", f"Rule: one branch per repo until it merges. {owner}/{repo} already has open: {others}. "
                        "Finish that first; review fixes stay on its branch. While it waits, review others or plan in an issue comment.")
     n = m.group(1)
-    frozen = frozen_parent(f"{owner}/{repo}", n)
-    if frozen is None and f"{owner}/{repo}" != EPIC_HOME:
+    full = f"{owner}/{repo}"
+    frozen = frozen_parent(full, n)
+    # The epic home is asked only when this repo has no issue n of its own (none, or it is a PR).
+    if frozen is None and full != EPIC_HOME and gh("api", f"repos/{full}/issues/{n}", "--jq", ".pull_request != null") != "false":
         frozen = frozen_parent(EPIC_HOME, n)
     if frozen:
-        return
+        return True
     decide("ask", f"Scope gate: issue #{n} is not in an open scope:frozen epic. New scope needs the user's yes in this "
                   "conversation (or they add it as a sub-issue of the epic).")
 
@@ -291,7 +313,8 @@ def main():
     check_text(tool, inp, inp.get("command") or "")
 
     if tool == "mcp__github__create_branch":
-        check_new_branch(inp.get("owner"), inp.get("repo"), inp.get("branch") or "")
+        if check_new_branch(inp.get("owner"), inp.get("repo"), inp.get("branch") or ""):
+            decide("allow", FROZEN_MSG)
     if tool == "mcp__github__merge_pull_request":
         check_merge(inp.get("owner"), inp.get("repo"), inp.get("pullNumber"))
     if tool != "Bash":
@@ -299,7 +322,9 @@ def main():
 
     cmd = inp.get("command") or ""
     where = cwd
-    for seg in segments(cmd):
+    segs = segments(cmd)
+    allowed = False
+    for seg in segs:
         toks = tokens(seg)
         if toks[:1] == ["cd"] and len(toks) > 1:
             where = os.path.join(where, os.path.expanduser(toks[1]))
@@ -313,9 +338,11 @@ def main():
                 d = os.path.join(where, os.path.expanduser(d))
                 if name == "":
                     name = git_out(d, "rev-parse", "--abbrev-ref", "HEAD") or ""
-                check_new_branch(*origin_repo(d), name)
+                allowed = check_new_branch(*origin_repo(d), name) or allowed
     if os.environ.get("CLAUDE_RELEASE_OWNER") != "1" and is_release(cmd, cwd):
         decide("deny", RELEASE_MSG)
+    if allowed and len(segs) == 1:   # never auto-approve the rest of a compound command
+        decide("allow", FROZEN_MSG)
 
 
 if __name__ == "__main__":
