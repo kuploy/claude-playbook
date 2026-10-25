@@ -7,7 +7,7 @@ The rules live in `rules/account-instructions.md`: desktop sessions import it fr
 **After you change the rules file** (no PR, no merge: it is not copied into repos):
 
 1. Paste it into Claude account settings. Cloud sessions read it there.
-2. Run `git -C ~/Devl/Projects/claude-playbook pull`. Desktop sessions read your laptop copy.
+2. Desktop sessions read your laptop copy. The `SessionStart` hook pulls it for you; without that hook, run `git -C ~/Devl/Projects/claude-playbook pull`.
 3. Restart the peers that should follow it (below).
 
 ```
