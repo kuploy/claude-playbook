@@ -208,6 +208,19 @@ def gh(*args):
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+def issue_kind(full, n):
+    """'issue', 'pr', 'none' (GitHub says 404), or None when GitHub could not be asked."""
+    try:
+        r = subprocess.run(["gh", "api", f"repos/{full}/issues/{n}", "--jq",
+                            'if .pull_request then "pr" else "issue" end'],
+                           capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode == 0:
+        return r.stdout.strip() or None
+    return "none" if "HTTP 404" in r.stderr else None
+
+
 def check_merge(owner, repo, number):
     where = f"{owner}/{repo}#{number}"
     if not (owner and repo and number):
@@ -288,7 +301,8 @@ def check_new_branch(owner, repo, name):
     full = f"{owner}/{repo}"
     frozen = frozen_parent(full, n)
     # The epic home is asked only when this repo has no issue n of its own (none, or it is a PR).
-    if frozen is None and full != EPIC_HOME and gh("api", f"repos/{full}/issues/{n}", "--jq", ".pull_request != null") != "false":
+    # A failed lookup is not "no issue": it falls through to ask.
+    if frozen is None and full != EPIC_HOME and issue_kind(full, n) in ("pr", "none"):
         frozen = frozen_parent(EPIC_HOME, n)
     if frozen:
         return True
@@ -344,7 +358,8 @@ def main():
                 allowed = check_new_branch(*origin_repo(d), name) or allowed
     if os.environ.get("CLAUDE_RELEASE_OWNER") != "1" and is_release(cmd, cwd):
         decide("deny", RELEASE_MSG)
-    if allowed and len(segs) == 1:   # never auto-approve the rest of a compound command
+    # Never auto-approve the rest of a compound command, a substitution or a redirect.
+    if allowed and len(segs) == 1 and not re.search(r"[`<>]|\$\(", cmd):
         decide("allow", FROZEN_MSG)
 
 
