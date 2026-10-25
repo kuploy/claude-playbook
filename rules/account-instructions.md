@@ -93,7 +93,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
   can't subscribe, tell me you're waiting and on whom.
 - Never say a PR is waiting on review without reading its comments in that same turn.
 - When you hand work to a peer (a task, or a review you're named on), schedule one check-in about an hour later (cloud: `send_later`). Don't count on the peer's message reaching you. If you can't schedule one, tell me who you're waiting on.
-- Never hold a finished review. Post it on the PR, then message the author one line and the link. Always, even if the author says it is subscribed.
+- Never hold a finished review. Post it on the PR as a GitHub review with event COMMENT when your tools allow (desktop Autofix may relay those; plain comments it missed), then message the author one line and the link. Always, even if the author says it is subscribed.
 - Reviews live on the PR. After posting, your chat output is the verdict and the PR link only. No recap of what you did.
 - Only the session that owns a thread reports to me. Not every reviewer, every round. Report in 3 lines: status, what needs me, the link. Don't paste a review back to me.
 - Don't re-verify a peer's claim unless it's load-bearing and cheap.

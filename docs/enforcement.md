@@ -33,6 +33,7 @@
 | Account prompt: session already running | Willpower | Untested. Start a new session. |
 | Per-repo CLAUDE.md (read code first, no new branch, git workflow) | Willpower | Loads in sessions started in that repo |
 | Desktop rules stay current: a `SessionStart` hook pulls the playbook | Enforced on your laptop once added | Untested. The pull may land after the rules load, so a change shows one session later |
+| Cloud session messaging a desktop peer | Allowed for the playbook session only (Ed approved on a trusted device, 2026-10-25). Other cloud sessions still can't | Tested: delivered |
 | Reviewer discovery bullet (`Review requested from:`, `list_sessions`) | Willpower | In the rules file and pasted into account settings (2026-10-24). PR template line not added. |
 | `autoCompactWindow` 250000 on **desktop** | Enforced | From `~/.claude/settings.json` |
 | `autoCompactWindow` on **cloud** | Enforced when read | Cloud has no user settings, so it used the default (about 784k). **A repo `.claude/settings.json` works** (tested: threshold 184k, source "settings"). Merged in all 13 repos; not re-tested on one of them. |
