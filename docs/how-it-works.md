@@ -75,7 +75,7 @@ Then merge `claude/settings.json` into `~/.claude/settings.json`. Its `SessionSt
 
 | Rule | What it does |
 |---|---|
-| No new branch without asking | **Asks you** on `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u`, and the GitHub create-branch tool |
+| Scope gate on new branches (#13) | On `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u` and the GitHub create-branch tool: **denies** a name without an issue number (`feat/<n>-slug`) or a repo with another open PR of yours; **allows** if issue `<n>` (in that repo, else in claude-playbook) is a sub-issue of an open epic labelled `scope:frozen`; **asks you** otherwise or if GitHub can't be reached. To add scope, add the issue to the epic yourself |
 | Only the release owner releases | **Denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` writes. `CLAUDE_RELEASE_OWNER=1` exempts a session |
 | 2 reviews before merge | On a merge: **allows** if `two-reviews` is green, **denies** if red, **asks** if missing |
 | Short PR bodies | **Denies** a PR body over 15 lines (footer not counted) |
@@ -87,11 +87,14 @@ It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (c
 **Gaps:**
 - Only runs in a repo that has the files, and only in sessions started after they landed.
 - Matches command text. `git update-ref` or a script that runs git gets past it.
-- `git push -u` asks even for an existing branch.
+- `git push -u` of a branch outside a frozen epic asks again, even if you approved its `checkout -b`.
+- The open-PR check counts PRs by the GitHub user, and all cloud sessions share yours. One writer per repo makes that right.
+- An issue number that exists in both the repo and claude-playbook uses the repo's issue first.
+- Branches made inside a script (like `copy-by-hand.sh`) aren't seen.
 - A wrong script path blocks nothing. Run the self-test after setup.
 - Results by session type: [enforcement.md](enforcement.md).
 
-**Self-test** (should print `"ask"`), from a repo that has the files:
+**Self-test** (should print `"deny"`: no issue number), from a repo that has the files:
 ```sh
 echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | python3 .claude/hooks/guard.py
 ```
