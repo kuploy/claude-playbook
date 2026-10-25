@@ -91,7 +91,7 @@ It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (c
 - A branch must read `<prefix>/<n>-<word>`. `feat/2026-10-25-x` or `7-3` is denied as having no issue number.
 - The open-PR check counts PRs by the GitHub user, and all cloud sessions share yours. One writer per repo makes that right.
 - The epic home (claude-playbook) is asked only when the repo has no issue `<n>` of its own.
-- A frozen-epic branch is auto-approved only as a single command with no backtick, `$(`, `<` or `>`. Otherwise the normal prompt runs.
+- A frozen-epic branch is auto-approved only as a bare `git [-C dir] <sub> ...` of plain words: no `-c`, env prefix, quote, `$`, glob, backtick or redirect. Otherwise the normal prompt runs.
 - If GitHub can't say whether the repo has issue `<n>`, the guard asks rather than trying claude-playbook.
 - Silent bypasses: `bash -c`, `env git`, `/usr/bin/git`, `git push origin HEAD:<new>` without `-u`, `gh api .../git/refs`. A pushed branch with no PR doesn't count as open.
 - Branches made inside a script (like `copy-by-hand.sh`) aren't seen.

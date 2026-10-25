@@ -358,9 +358,15 @@ def main():
                 allowed = check_new_branch(*origin_repo(d), name) or allowed
     if os.environ.get("CLAUDE_RELEASE_OWNER") != "1" and is_release(cmd, cwd):
         decide("deny", RELEASE_MSG)
-    # Never auto-approve the rest of a compound command, a substitution or a redirect.
-    if allowed and len(segs) == 1 and not re.search(r"[`<>]|\$\(", cmd):
-        decide("allow", FROZEN_MSG)
+    # Auto-approve only a bare `git [-C dir] <sub> ...` of plain words: no compound, substitution,
+    # redirect, env prefix or `-c` setting, since those can run a program the user never saw.
+    toks = cmd.split()
+    plain = all(re.fullmatch(r"[A-Za-z0-9._/@:+-]+", t) for t in toks)
+    if allowed and len(segs) == 1 and plain and toks[0] == "git":
+        if toks[1] == "-C":
+            toks = toks[2:]
+        if not toks[1].startswith("-"):
+            decide("allow", FROZEN_MSG)
 
 
 if __name__ == "__main__":
