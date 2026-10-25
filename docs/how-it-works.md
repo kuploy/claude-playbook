@@ -87,7 +87,8 @@ It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (c
 **Gaps:**
 - Only runs in a repo that has the files, and only in sessions started after they landed.
 - Matches command text. `git update-ref` or a script that runs git gets past it.
-- `git push -u` of a branch outside a frozen epic asks again, even if you approved its `checkout -b`.
+- `git push -u` of a branch already on the remote is not gated. A first push outside a frozen epic asks again, even if you approved its `checkout -b`.
+- A branch must read `<prefix>/<n>-<word>`. `feat/2026-10-25-x` or `7-3` is denied as having no issue number.
 - The open-PR check counts PRs by the GitHub user, and all cloud sessions share yours. One writer per repo makes that right.
 - The epic home (claude-playbook) is asked only when the repo has no issue `<n>` of its own.
 - A frozen-epic branch is auto-approved only as a single command. In a compound command the normal prompt runs.

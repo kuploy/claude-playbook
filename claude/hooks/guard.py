@@ -270,16 +270,17 @@ def check_new_branch(owner, repo, name):
     """Scope gate (#13). One branch per repo until merged; frozen-epic work needs no prompt."""
     if name == "" or name is None:
         decide("ask", NEW_BRANCH_MSG + " Could not read the branch name.")
-    m = re.search(r"(?:^|/)(\d+)-", name)
+    m = re.search(r"(?:^|/)(\d+)-[A-Za-z]", name)
     if not m:
         decide("deny", f"Rule: a branch names its issue, e.g. feat/<issue>-slug. '{name}' has no issue number.")
     if not (owner and repo):
         decide("ask", NEW_BRANCH_MSG + " Could not tell which repo this is.")
     me = gh("api", "user", "--jq", ".login")
-    others = me and gh("api", f"repos/{owner}/{repo}/pulls?state=open&per_page=100", "--jq",
-                       f'[.[]|select(.user.login=="{me}" and .head.ref!="{name}")|"#\\(.number) \\(.head.ref)"]|join(", ")')
-    if others is None or me is None:
+    pulls = me and gh("api", f"repos/{owner}/{repo}/pulls?state=open&per_page=100")
+    if not pulls:
         decide("ask", NEW_BRANCH_MSG + " Could not reach GitHub to check scope.")
+    others = ", ".join(f"#{p['number']} {p['head']['ref']}" for p in json.loads(pulls)
+                       if p["user"]["login"] == me and p["head"]["ref"] != name)
     if others:
         decide("deny", f"Rule: one branch per repo until it merges. {owner}/{repo} already has open: {others}. "
                        "Finish that first; review fixes stay on its branch. While it waits, review others or plan in an issue comment.")
@@ -338,6 +339,8 @@ def main():
                 d = os.path.join(where, os.path.expanduser(d))
                 if name == "":
                     name = git_out(d, "rev-parse", "--abbrev-ref", "HEAD") or ""
+                if sub == "push" and name and git_out(d, "ls-remote", "--heads", "origin", name):
+                    continue   # branch already on the remote: not new
                 allowed = check_new_branch(*origin_repo(d), name) or allowed
     if os.environ.get("CLAUDE_RELEASE_OWNER") != "1" and is_release(cmd, cwd):
         decide("deny", RELEASE_MSG)
