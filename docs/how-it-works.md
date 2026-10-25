@@ -67,7 +67,7 @@ git clone git@github.com:ceduth/claude-playbook.git ~/Devl/Projects/claude-playb
 ln -s ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents
 ```
 
-Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in the clone updates everything. Check in a **new** desktop session: it should know the "Sessions and quota" section (passed 2026-10-24).
+Then merge `claude/settings.json` into `~/.claude/settings.json`. Its `SessionStart` hook pulls the clone at each session start, so you no longer pull by hand. Check in a **new** desktop session: it should know the "Sessions and quota" section (passed 2026-10-24).
 
 ## The guard hook
 
@@ -78,6 +78,9 @@ Then merge `claude/settings.json` into `~/.claude/settings.json`. `git pull` in 
 | No new branch without asking | **Asks you** on `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u`, and the GitHub create-branch tool |
 | Only the release owner releases | **Denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` writes. `CLAUDE_RELEASE_OWNER=1` exempts a session |
 | 2 reviews before merge | On a merge: **allows** if `two-reviews` is green, **denies** if red, **asks** if missing |
+| Short PR bodies | **Denies** a PR body over 15 lines (footer not counted) |
+| Review format | **Denies** a `Reviewer:` comment missing a line or with more than 5 lines after the block |
+| Check-in after hand-off | After a PR opens, **reminds** the session to subscribe and schedule a check-in |
 
 It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (copied by the sync), so desktop and cloud read the same files. A new repo needs a line in `.github/sync.yml`.
 

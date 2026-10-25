@@ -8,6 +8,9 @@
 | New branch: **asks you** on `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u`, GitHub create-branch | Best effort (matches command text) | Tested cloud and desktop, Manual mode. Bypass and Auto modes untested. |
 | Release, build, cluster writes: **denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` write verbs, unless `CLAUDE_RELEASE_OWNER=1` | Enforced for those commands. An unusual command gets past. | Tested cloud and desktop |
 | Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't, **asks** if missing or unchecked | Enforced once the check is live | Only tested with a fake `gh`. Today it always asks. |
+| PR body over 15 lines (GitHub tools and `gh pr create/edit`): **denies** | Enforced for those tools. Footer lines not counted | Self-tested. Not yet in the repos |
+| Review comment (`Reviewer:`) missing a line or over 5 lines after the block: **denies** | Enforced for those tools | Self-tested. Not yet in the repos |
+| After opening a PR: **reminds** to subscribe and schedule a check-in | Reminder, not a block | Self-tested. That Claude shows the reminder is untested |
 | Bad input, a crash or a wrong script path | **Fails open**: no guard, no error | Known gap. Run the self-test after setup. |
 | Repos without the `.claude/` files | No guard | All 13 repos have them on their working branch. Also on `main`: kuploy, kuploy-hub, growthops, epay-gateway, kuploy-cloud. Other `main` branches: not checked. |
 
@@ -29,6 +32,7 @@
 | Account prompt: new desktop session | Willpower | **Does not load.** Fix done: `~/.claude/CLAUDE.md` imports the playbook file. Probe: 3 of 3 yes (2026-10-24). |
 | Account prompt: session already running | Willpower | Untested. Start a new session. |
 | Per-repo CLAUDE.md (read code first, no new branch, git workflow) | Willpower | Loads in sessions started in that repo |
+| Desktop rules stay current: a `SessionStart` hook pulls the playbook | Enforced on your laptop once added | Untested. The pull may land after the rules load, so a change shows one session later |
 | Reviewer discovery bullet (`Review requested from:`, `list_sessions`) | Willpower | In the rules file and pasted into account settings (2026-10-24). PR template line not added. |
 | `autoCompactWindow` 250000 on **desktop** | Enforced | From `~/.claude/settings.json` |
 | `autoCompactWindow` on **cloud** | Enforced when read | Cloud has no user settings, so it used the default (about 784k). **A repo `.claude/settings.json` works** (tested: threshold 184k, source "settings"). Merged in all 13 repos; not re-tested on one of them. |
