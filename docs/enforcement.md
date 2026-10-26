@@ -8,6 +8,7 @@
 | New branch, scope gate (#13): **denies** no issue number or another open PR in the repo, **allows** a sub-issue of an open `scope:frozen` epic, else **asks** | Best effort (matches command text) | Each row self-tested with real and fake `gh`, 2026-10-25. Not yet copied to the other repos. Bypass and Auto modes untested. |
 | Release, build, cluster writes: **denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` write verbs, unless `CLAUDE_RELEASE_OWNER=1` | Enforced for those commands. An unusual command gets past. | Tested cloud and desktop |
 | Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't, **asks** if missing or unchecked | Enforced once the check is live | Only tested with a fake `gh`. Today it always asks. |
+| Merge with `CLAUDE_REVIEW_GATE=local` (#34): counts approving `Reviewer:` blocks after the push, **denies** under two, **asks** only if GitHub can't be reached | Enforced on machines with the hook. A merge from the web UI or a phone gets past | Tested with a fake `gh`, 2026-10-26. Not switched on anywhere. |
 | PR body over 15 lines (GitHub tools and `gh pr create/edit`): **denies** | Enforced for those tools. Footer lines not counted | In all 14 repos. Refused in a live cloud session, 2026-10-25 |
 | Review comment (`Reviewer:`) missing a line or over 5 lines after the block: **denies** | Enforced for those tools | In all 14 repos. Refused in a live cloud session, 2026-10-25 |
 | After opening a PR: **reminds** to subscribe and schedule a check-in | Reminder, not a block | Self-tested. That Claude shows the reminder is untested |
@@ -50,6 +51,17 @@
 | Hook files added to a running session | **Load live** | **Load live** |
 
 `/hooks` works only in a terminal session.
+
+## `CLAUDE_REVIEW_GATE`
+Which evidence the guard wants before a merge (#34).
+
+| | |
+|---|---|
+| `status` (default) | The `two-reviews` commit status. Missing means **ask**, so a "yes" merges with no reviews. |
+| `local` | The guard counts the reviews itself, the way `sync/two-reviews.yml` does: the latest block per `Reviewer:` name, from someone with write access, posted after GitHub received the head (earliest check suite, else the committer date), verdict starting `approve`, `Ran:` and `Would catch:` filled. Under two: **deny**. Needs neither Actions nor the console. |
+| `both` | Both of the above. A missing status is a **deny**, not an ask. |
+| Where to set it | Cloud: the environment's variables (untested). Desktop: `"env": {"CLAUDE_REVIEW_GATE": "local"}` in `.claude/settings.local.json` (that checkout only). Not in the repo's `.claude/settings.json`: the sync owns that file. Takes effect at session start. |
+| Limit | It only guards sessions that run the hook. The status, when something posts it and a ruleset requires it, binds everyone. |
 
 ## `CLAUDE_RELEASE_OWNER=1`
 The guard denies release commands for every session except one with this in its environment.
