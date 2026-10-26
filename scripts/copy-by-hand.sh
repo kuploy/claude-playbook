@@ -49,6 +49,11 @@ for r in "${repos[@]}"; do
     # same rule as the repos' CLAUDE.md: branch off dev when it exists, else the default branch
     base=$(git ls-remote --heads origin dev | grep -q 'refs/heads/dev' && echo dev || git rev-parse --abbrev-ref HEAD)
     branch="playbook/sync-$(date +%Y%m%d)"
+    # a same-day rerun would collide with the first run's branch, so add the time
+    if git ls-remote --heads origin "$branch" | grep -q .; then
+      branch="playbook/sync-$(date +%Y%m%d-%H%M)"
+      echo "$r: today's branch already exists, using $branch"
+    fi
     git checkout -q "$base" && git checkout -q -b "$branch" || { echo "$r: branch failed"; exit 1; }
     echo "$pairs" | while read -r src dst; do mkdir -p "$(dirname "$dst")"; cp "$here/$src" "$dst"; done
     git add -A

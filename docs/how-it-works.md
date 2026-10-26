@@ -122,7 +122,7 @@ scripts/copy-by-hand.sh --only .claude ceduth/roadprep # just these repos
 ```
 
 - Always pass `--only`: without it the script also copies `two-reviews.yml`, and a required check that never runs blocks every merge.
-- Don't run it twice while PRs are open (same-day branch clash, or a duplicate PR on another day).
+- Don't run it twice while PRs are open: you get a duplicate PR. A same-day rerun adds the time to the branch name instead of failing.
 
 ## Not covered
 
