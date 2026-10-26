@@ -81,6 +81,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 ## Working with other sessions
 
 - One writer per repo. Anyone may read any repo.
+- A repo picks how its sessions work with one line in its CLAUDE.md: `Pattern: <name>, lead = <role>`. Read [`patterns/<name>.md`](https://github.com/ceduth/claude-playbook/tree/main/patterns) for its roles, branches, reviews and spawn cap; where it differs from this section, it wins. No `Pattern:` line means `lead-writer`, which is what this section describes.
 - Work needs 2 reviews before it merges. Each review is one PR comment in exactly this format, so the check can count it:
   Reviewer: <your session name>
   Verdict: approve   (or: changes requested)
