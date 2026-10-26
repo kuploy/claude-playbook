@@ -29,6 +29,8 @@ import sys
 NEW_BRANCH_MSG = "Rule: never create a new branch without asking first. Approve only if the user said so in this conversation."
 FROZEN_MSG = "Scope gate: branch for a sub-issue of an open scope:frozen epic. Approved by the freeze."
 EPIC_HOME = "ceduth/claude-playbook"   # where epics and most of their issues live
+# Options a frozen-epic branch command may carry and still be auto-approved. None runs a program.
+SAFE_OPTS = {"-b", "-B", "-c", "-C", "-u", "--set-upstream", "-t", "--track", "--no-track"}
 RELEASE_MSG = ("Rule: only the release owner session runs releases, builds or cluster writes "
                "(kuploy-cloud CLAUDE.md). If you are that session, start it with CLAUDE_RELEASE_OWNER=1.")
 
@@ -360,12 +362,15 @@ def main():
         decide("deny", RELEASE_MSG)
     # Auto-approve only a bare `git [-C dir] <sub> ...` of plain words: no compound, substitution,
     # redirect, env prefix or `-c` setting, since those can run a program the user never saw.
+    # Options after the subcommand must be on SAFE_OPTS: `push --receive-pack <cmd>` (or any
+    # abbreviation git accepts, like `--rece`) runs <cmd> when the remote is a local path.
     toks = cmd.split()
     plain = all(re.fullmatch(r"[A-Za-z0-9._/@:+-]+", t) for t in toks)
     if allowed and len(segs) == 1 and plain and toks[0] == "git":
         if toks[1] == "-C":
             toks = toks[2:]
-        if not toks[1].startswith("-"):
+        opts = [t for t in toks[2:] if t.startswith("-")]
+        if not toks[1].startswith("-") and all(o in SAFE_OPTS for o in opts):
             decide("allow", FROZEN_MSG)
 
 
