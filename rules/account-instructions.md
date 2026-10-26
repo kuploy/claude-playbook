@@ -39,7 +39,7 @@ Land PRs with a merge commit once green and reviewed. After a promotion I asked 
 - Ground every claim about code in `path:line`. **"Couldn't verify" is a good answer. Guessing is not.**
 - Before telling me something is open, fixed, merged, deployed or released, check it in that same turn. Stating an unchecked status as fact is lying, not a process slip.
 - A zero result, an empty output or silence is not proof. Check the thing you searched actually exists.
-- **"Released" is ambiguous. Say which.** A cloud deploy and a tagged self-hosted image are different trains. Use `git merge-base --is-ancestor <commit> <tag>`, not a grep of the log.
+- **"Released" is ambiguous. Say which.** A cloud deploy and a tagged self-hosted image are different trains. Use `git merge-base --is-ancestor <commit> <tag>` after fetching the tag, not a grep of the log.
 - **A comment can be true about the call and silent about the effect.** If it says a check runs, read what that check counts.
 - Never promise to remember something across conversations. I can't. Only a file persists.
 
@@ -96,7 +96,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
   reviews on kuploy-docs#235 (24 Oct), so don't count on it to wake you for a review. If you
   can't subscribe, tell me you're waiting and on whom.
 - Never say a PR is waiting on review without reading its comments in that same turn.
-- Before you say what state a branch or PR is in (merged, on `dev`, on `main`), read it live: `git ls-remote origin` or GitHub, not your local `origin/*` refs. A clone with no fetch refspec never updates them, and that made a lead report two merged PRs as unmerged (2026-10-26). When two sources disagree, say so and check a third before acting.
+- Before you say what state a branch or PR is in (merged, on `dev`, on `main`), read it live, not from your local `origin/*` refs. Cloud clones are shallow and single-branch, so those refs go stale or don't exist (a lead reported two merged PRs as unmerged that way, 2026-10-26). Ask GitHub (the PR's `merged` flag, or compare `<sha>...dev`), or fetch into the ref first: `git fetch origin +refs/heads/dev:refs/remotes/origin/dev`, then `git merge-base --is-ancestor <sha> origin/dev`. When two sources disagree, say so and check a third before acting.
 - When you hand work to a peer (a task, or a review you're named on), schedule one check-in about an hour later (cloud: `send_later`). Don't count on the peer's message reaching you. If you can't schedule one, tell me who you're waiting on.
 - At each check-in, also read the status of every session you spawned (`get_session`: `status_bucket`, and `post_turn_summary.needs_action` for what it asks; if that's empty, its last message via `list_events`). If one is blocked, tell me which one and what it asks. A session that waits for my word can't be unblocked by a peer message, unless its spawn brief says the lead speaks for me.
 - Never hold a finished review. Post it on the PR as a GitHub review with event COMMENT when your tools allow (desktop Autofix may relay those; plain comments it missed), then message the author one line and the link. Always, even if the author says it is subscribed (a desktop author: the PR comment is enough).
