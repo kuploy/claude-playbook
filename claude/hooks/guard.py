@@ -236,11 +236,19 @@ def field(body, name):
 
 
 def local_approvals(owner, repo, number, sha):
-    """Approving reviewers after the head was pushed, counted as sync/two-reviews.yml does. None: GitHub unreachable."""
+    """(approving reviewers after the head was pushed, note), counted as sync/two-reviews.yml does.
+    Count None: GitHub unreachable or a reply we could not read, so the caller asks rather than failing open."""
+    try:
+        return count_approvals(owner, repo, number, sha)
+    except Exception:
+        return None, ""
+
+
+def count_approvals(owner, repo, number, sha):
     full = f"repos/{owner}/{repo}"
     committed = gh("api", f"{full}/commits/{sha}", "--jq", ".commit.committer.date")
     if not committed:
-        return None
+        return None, ""
     # Push time is the earliest check suite (when GitHub received the sha), never the committer
     # date alone: a verdict written between commit and push has not seen the pushed head.
     since = when(committed)
@@ -248,13 +256,15 @@ def local_approvals(owner, repo, number, sha):
     seen = sorted(when(s) for s in (suites or "").split())
     if seen and seen[0] > since:
         since = seen[0]
+    note = "" if suites is not None else " (push time unknown: counted from the commit date)"
     shape = "{body, at: (.created_at // .submitted_at), assoc: .author_association}"
     comments = gh("api", "--paginate", f"{full}/issues/{number}/comments", "--jq", f".[] | {shape} | @json")
     reviews = gh("api", "--paginate", f"{full}/pulls/{number}/reviews", "--jq", f".[] | {shape} | @json")
     if comments is None or reviews is None:
-        return None
+        return None, ""
+    # Split on "\n" only: splitlines() also splits on U+2028/U+2029, which gh leaves raw in @json.
     # A pending review has no time yet; skipped here, since a crash would fail open.
-    items = sorted((it for it in (json.loads(l) for l in (comments + "\n" + reviews).splitlines() if l.strip())
+    items = sorted((it for it in (json.loads(l) for l in (comments + "\n" + reviews).split("\n") if l.strip())
                     if it.get("at")), key=lambda it: when(it["at"]))
     latest = {}   # latest verdict per reviewer name, from people with write access, after the push
     for it in items:
@@ -264,7 +274,7 @@ def local_approvals(owner, repo, number, sha):
         if who and verdict:
             latest[who.lower()] = (verdict.lower().startswith("approve")
                                    and bool(field(it["body"], "Ran")) and bool(field(it["body"], "Would catch")))
-    return sum(latest.values())
+    return sum(latest.values()), note
 
 
 def check_merge(owner, repo, number):
@@ -272,13 +282,15 @@ def check_merge(owner, repo, number):
     if not (owner and repo and number):
         decide("ask", "Rule: 2 reviews before merge. Could not tell which PR this merges. Confirm two reviews exist.")
     sha = gh("api", f"repos/{owner}/{repo}/pulls/{number}", "--jq", ".head.sha")
-    mode = os.environ.get("CLAUDE_REVIEW_GATE", "status")
+    mode = os.environ.get("CLAUDE_REVIEW_GATE", "status").strip().lower()
+    if mode not in ("status", "local", "both"):
+        decide("ask", f"Rule: 2 reviews before merge. CLAUDE_REVIEW_GATE='{mode}' is not status, local or both. Confirm two reviews exist.")
     if mode in ("local", "both"):
-        n = local_approvals(owner, repo, number, sha) if sha else None
+        n, note = local_approvals(owner, repo, number, sha) if sha else (None, "")
         if n is None:
             decide("ask", f"Rule: 2 reviews before merge. Could not count the reviews on {where}. Confirm two reviews exist.")
         if n < 2:
-            decide("deny", f"Rule: 2 reviews before merge. {where} has {n} approving review(s) after the last push. "
+            decide("deny", f"Rule: 2 reviews before merge. {where} has {n} approving review(s) after the last push{note}. "
                            "Get two reviews (the 4-line block) on the current head.")
         if mode == "local":
             return
