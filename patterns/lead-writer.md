@@ -5,7 +5,7 @@ Use: a new repo or a new feature. The default when a repo's CLAUDE.md has no `Pa
 ## Roles
 - lead: cuts the work into issues, reviews, reports to Ed. Doesn't write code on the repo.
 - writer: builds. One per repo.
-- reviewer: reviews PRs. Any session that isn't the writer; with the lead, it gives the two reviews.
+- reviewer: reviews PRs. Any session that isn't the writer. The lead may give one of the two reviews.
 
 ## Writers and branches
 - Writers: 1.
