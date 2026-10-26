@@ -19,6 +19,6 @@ Use: repos that ship a release, such as kuploy-cloud and core.
 - The release owner.
 
 ## Spawn cap and archiving
-- Spawn cap: 3
+- Spawn cap: 3 (the release owner; other roles 0)
 - The release owner keeps at most 3 live sessions it spawned. Others don't spawn.
 - The release owner archives each child when its task ends: PR merged or review posted.
