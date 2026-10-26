@@ -3,13 +3,14 @@
 Use: repos that ship a release, such as kuploy-cloud and core.
 
 ## Roles
-- writer: builds. Up to 2, named `writer-1` and `writer-2`.
+- writer: builds. Up to 2, each with its own role name.
 - reviewer: reviews PRs. Any session that isn't the PR's writer.
-- release owner: reviews every PR, promotes `dev` to `main` and runs the release, both only when Ed asks. The only role that touches the release.
+- release owner: reviews every PR, promotes `dev` to `main` and runs the release, both only when Ed asks. The guard blocks release, build and cluster commands for everyone else; promotion is held by this rule, not by the guard.
 
 ## Writers and branches
 - Writers: up to 2.
-- Open branches per writer: 1, named `feat/writer-1/<n>-slug` or `feat/writer-2/<n>-slug`.
+- Open branches per writer: 1, named `feat/<role>/<n>-slug`, where `<role>` is the session's role name.
+- Today the guard allows one open branch per repo, because every session pushes as Ed. So the second writer waits until the first writer's PR merges (#29).
 
 ## Reviews
 - Reviews before merge: 2. One of them from the release owner.

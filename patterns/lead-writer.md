@@ -9,7 +9,7 @@ Use: a new repo or a new feature. The default when a repo's CLAUDE.md has no `Pa
 
 ## Writers and branches
 - Writers: 1.
-- Open branches per writer: 1, named `feat/writer/<n>-slug`.
+- Open branches per writer: 1, named `feat/<role>/<n>-slug`, where `<role>` is the session's role name, such as `console-writer`.
 
 ## Reviews
 - Reviews before merge: 2. One from the lead, one from the reviewer.
