@@ -12,11 +12,12 @@ Use: a new repo or a new feature. The default when a repo's CLAUDE.md has no `Pa
 - Open branches per writer: 1, named `feat/<role>/<n>-slug`, where `<role>` is the session's role name, such as `console-writer`.
 
 ## Reviews
-- Reviews before merge: 2. One from the lead, one from the reviewer.
+- Reviews before merge: 2, from sessions that aren't the writer. The lead may be one.
 
 ## Reports to Ed
 - The lead.
 
 ## Spawn cap and archiving
+- Spawn cap: 3
 - The lead keeps at most 3 live sessions it spawned. Children don't spawn.
 - The lead archives each child when its task ends: PR merged or review posted.

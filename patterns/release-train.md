@@ -10,7 +10,7 @@ Use: repos that ship a release, such as kuploy-cloud and core.
 ## Writers and branches
 - Writers: up to 2.
 - Open branches per writer: 1, named `feat/<role>/<n>-slug`, where `<role>` is the session's role name.
-- Today the guard allows one open branch per repo, because every session pushes as Ed. So the second writer waits until the first writer's PR merges (#29).
+- Today the guard allows one open branch per repo, because every session pushes as Ed. So the second writer waits until the first writer's PR merges, unless Ed approves #29.
 
 ## Reviews
 - Reviews before merge: 2. One of them from the release owner.
@@ -19,5 +19,6 @@ Use: repos that ship a release, such as kuploy-cloud and core.
 - The release owner.
 
 ## Spawn cap and archiving
+- Spawn cap: 3
 - The release owner keeps at most 3 live sessions it spawned. Others don't spawn.
 - The release owner archives each child when its task ends: PR merged or review posted.

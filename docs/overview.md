@@ -24,6 +24,8 @@ peer pushes branch ─▶ writes status on its issue/PR ─▶ end the old sessi
 
 No nudge message: a fresh session wouldn't remember it. Don't rely on peers reading this repo: it's private, and a cloud session only opens repos attached to it. The account prompt is self-contained.
 
+A desktop session gets no spawn brief. When you start one on a repo with a `Pattern:` line, name its role in your first message ("You are the reviewer"); otherwise it asks.
+
 ## Who owns what
 
 ```

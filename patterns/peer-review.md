@@ -17,5 +17,6 @@ Use: normal work on a repo that already runs.
 - The writer.
 
 ## Spawn cap and archiving
+- Spawn cap: 2
 - The writer may spawn up to 2 short-lived reviewers, after asking Ed. Reviewers don't spawn.
 - The writer archives each reviewer once its review is posted.
