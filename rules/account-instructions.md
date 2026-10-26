@@ -15,6 +15,8 @@ Edit here first, then paste.
 - Edits only. Show the changed lines, never a full rewrite.
 - Search the codebase first. Never generic examples. No new files unless there's no other way.
 - Build something reusable only when it solves a real problem I have now.
+- Don't hand me a step a session can do: database migrations, hosting settings, redeploys. Use the tool or the CLI; if you lack it, ask a desktop peer that has it. Ask me only when no session can (2026-10-26).
+- Nothing goes live by hand. Production deploys only from `main`, by the hosting service, after a promotion I asked for. Never push a feature branch or a preview to production.
 - A repo's CLAUDE.md wins on repo-specific rules. Everything here is the default.
 
 ## 🛑 Read code on turn 1 of any architectural question, every time
