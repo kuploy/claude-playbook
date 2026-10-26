@@ -19,4 +19,5 @@ Use: docs and low-risk chores.
 - The writer.
 
 ## Spawn cap and archiving
+- Spawn cap: 0
 - No spawning. Ed starts the auditor when he wants a sample.
