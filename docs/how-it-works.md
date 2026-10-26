@@ -77,7 +77,7 @@ Then merge `claude/settings.json` into `~/.claude/settings.json`. Its `SessionSt
 |---|---|
 | Scope gate on new branches (#13) | On `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u` and the GitHub create-branch tool: **denies** a name without an issue number (`feat/<n>-slug`) or a repo with another open PR of yours; **allows** if issue `<n>` (in that repo, else in claude-playbook) is a sub-issue of an open epic labelled `scope:frozen`; **asks you** otherwise or if GitHub can't be reached. To add scope, add the issue to the epic yourself |
 | Only the release owner releases | **Denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` writes. `CLAUDE_RELEASE_OWNER=1` exempts a session |
-| 2 reviews before merge | On a merge: **allows** if `two-reviews` is green, **denies** if red, **asks** if missing |
+| 2 reviews before merge | On a merge: **allows** if `two-reviews` is green, **denies** if red, **asks** if missing. With `CLAUDE_REVIEW_GATE=local` it counts the reviews itself and **denies** under two: see [enforcement.md](enforcement.md#claude_review_gate) |
 | Short PR bodies | **Denies** a PR body over 15 lines (footer not counted) |
 | Review format | **Denies** a `Reviewer:` comment missing a line or with more than 5 lines after the block |
 | Check-in after hand-off | After a PR opens, **reminds** the session to subscribe and schedule a check-in |
