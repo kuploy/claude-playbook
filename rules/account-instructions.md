@@ -23,7 +23,9 @@ Never reason from my assertion, an issue, a PR description, a comment or a doc. 
 
 ## 🛑 Never create a new branch without asking first
 
-Work on the branch already checked out. Don't create, switch to or push a new branch, including the session's assigned one, unless I approved it in this conversation. One active branch per repo.
+Work on the branch already checked out. Don't create, switch to or push a new branch, including the session's assigned one, unless I approved it in this conversation. A branch for a sub-issue of a `scope:frozen` epic is approved already. One active branch per repo, until it merges.
+
+While your PR waits, review others' PRs or plan your next issue in an issue comment; don't start a branch. No review after 2 hours: tell me once.
 
 ## Git defaults (a repo's CLAUDE.md overrides)
 

@@ -4,7 +4,9 @@
 Wired in settings.json (see docs/how-it-works.md). Claude Code runs it before a tool call
 and passes the call as JSON on stdin.
 
-  1. New branch  -> ask the user first.
+  1. New branch  -> scope gate (#13): deny if the name has no issue number or the repo
+                    has another open PR of yours; allow if the issue is a sub-issue of an
+                    open `scope:frozen` epic; else ask the user.
   2. Release, build or cluster-write commands -> deny unless CLAUDE_RELEASE_OWNER=1.
   3. Merge       -> deny if the `two-reviews` status exists and is not green;
                     ask if it is missing or cannot be checked.
@@ -25,6 +27,8 @@ import subprocess
 import sys
 
 NEW_BRANCH_MSG = "Rule: never create a new branch without asking first. Approve only if the user said so in this conversation."
+FROZEN_MSG = "Scope gate: branch for a sub-issue of an open scope:frozen epic. Approved by the freeze."
+EPIC_HOME = "ceduth/claude-playbook"   # where epics and most of their issues live
 RELEASE_MSG = ("Rule: only the release owner session runs releases, builds or cluster writes "
                "(kuploy-cloud CLAUDE.md). If you are that session, start it with CLAUDE_RELEASE_OWNER=1.")
 
@@ -115,7 +119,22 @@ def opened_pr(tool, inp):
 
 
 def segments(cmd):
-    return [s.strip() for s in re.split(r"&&|\|\||;|\||\n", cmd) if s.strip()]
+    """Simple commands in cmd, split on && || ; | ( ) and newlines, but not inside quotes."""
+    try:
+        lex = shlex.shlex(cmd.replace("\n", " ; "), posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        toks = list(lex)
+    except ValueError:   # e.g. a heredoc: fall back to a plain split
+        return [s.strip() for s in re.split(r"&&|\|\||;|\||\n", cmd) if s.strip()]
+    segs, cur = [], []
+    for t in toks + [";"]:
+        if set(t) <= set("&|;()"):
+            if cur:
+                segs.append(shlex.join(cur))
+            cur = []
+        else:
+            cur.append(t)
+    return segs
 
 
 def tokens(seg):
@@ -143,17 +162,31 @@ def git_call(toks):
 
 
 def creates_branch(sub, args):
+    """Name of the branch a git call creates (or first-pushes), '' if unknown, None if none."""
+    names = [a for a in args if not a.startswith("-")]
     if sub in ("checkout", "switch"):
-        return any(a in CREATE_FLAGS for a in args)
+        for i, a in enumerate(args):
+            if a in CREATE_FLAGS:
+                return args[i + 1] if i + 1 < len(args) else ""
+            if a.startswith("--") and a.split("=")[0] in CREATE_FLAGS:   # --create=name
+                return a.split("=", 1)[1]
+            if re.match(r"^-[bBcC].", a):                               # -bname
+                return a[2:]
+        return None
     if sub == "worktree":
-        return args[:1] == ["add"] and any(a in ("-b", "-B") for a in args)
+        if args[:1] == ["add"] and any(a in ("-b", "-B") for a in args):
+            i = next(i for i, a in enumerate(args) if a in ("-b", "-B"))
+            return args[i + 1] if i + 1 < len(args) else ""
+        return None
     if sub == "branch":
         flags = [a.split("=")[0] for a in args if a.startswith("-")]
-        names = [a for a in args if not a.startswith("-")]
-        return bool(names) and not any(f in NOT_CREATING for f in flags)
+        return names[0] if names and not any(f in NOT_CREATING for f in flags) else None
     if sub == "push":   # first push of a new branch is nearly always `-u`
-        return any(a in ("-u", "--set-upstream") for a in args)
-    return False
+        if not any(a in ("-u", "--set-upstream") for a in args):
+            return None
+        ref = names[1] if len(names) > 1 else ""
+        return ref.split(":")[-1].removeprefix("refs/heads/") if ref not in ("", "HEAD") else ""
+    return None
 
 
 def is_release(cmd, cwd):
@@ -173,6 +206,19 @@ def gh(*args):
     except (OSError, subprocess.TimeoutExpired):
         return None
     return r.stdout.strip() if r.returncode == 0 else None
+
+
+def issue_kind(full, n):
+    """'issue', 'pr', 'none' (GitHub says 404), or None when GitHub could not be asked."""
+    try:
+        r = subprocess.run(["gh", "api", f"repos/{full}/issues/{n}", "--jq",
+                            'if .pull_request then "pr" else "issue" end'],
+                           capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode == 0:
+        return r.stdout.strip() or None
+    return "none" if "HTTP 404" in r.stderr else None
 
 
 def check_merge(owner, repo, number):
@@ -212,6 +258,58 @@ def gh_merge_target(toks):
     return owner, name, number
 
 
+def git_out(where, *args):
+    try:
+        r = subprocess.run(["git", "-C", where or ".", *args], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def origin_repo(where):
+    url = git_out(where, "remote", "get-url", "origin") or ""
+    m = re.search(r"github\.com[:/]([^/]+)/([^/]+?)(\.git)?$", url)
+    return (m.group(1), m.group(2)) if m else (None, None)
+
+
+def frozen_parent(repo, n):
+    """True/False: issue n of repo is a sub-issue of an open scope:frozen epic. None: no such parent found."""
+    out = gh("api", f"repos/{repo}/issues/{n}/parent", "--jq",
+             '(.state=="open") and ([.labels[].name]|index("scope:frozen")!=null)')
+    return None if out is None else out == "true"
+
+
+def check_new_branch(owner, repo, name):
+    """Scope gate (#13). One branch per repo until merged; frozen-epic work needs no prompt."""
+    if name == "" or name is None:
+        decide("ask", NEW_BRANCH_MSG + " Could not read the branch name.")
+    m = re.search(r"(?:^|/)(\d+)-[A-Za-z]", name)
+    if not m:
+        decide("deny", f"Rule: a branch names its issue, e.g. feat/<issue>-slug. '{name}' has no issue number.")
+    if not (owner and repo):
+        decide("ask", NEW_BRANCH_MSG + " Could not tell which repo this is.")
+    me = gh("api", "user", "--jq", ".login")
+    pulls = me and gh("api", f"repos/{owner}/{repo}/pulls?state=open&per_page=100")
+    if not pulls:
+        decide("ask", NEW_BRANCH_MSG + " Could not reach GitHub to check scope.")
+    others = ", ".join(f"#{p['number']} {p['head']['ref']}" for p in json.loads(pulls)
+                       if p["user"]["login"] == me and p["head"]["ref"] != name)
+    if others:
+        decide("deny", f"Rule: one branch per repo until it merges. {owner}/{repo} already has open: {others}. "
+                       "Finish that first; review fixes stay on its branch. While it waits, review others or plan in an issue comment.")
+    n = m.group(1)
+    full = f"{owner}/{repo}"
+    frozen = frozen_parent(full, n)
+    # The epic home is asked only when this repo has no issue n of its own (none, or it is a PR).
+    # A failed lookup is not "no issue": it falls through to ask.
+    if frozen is None and full != EPIC_HOME and issue_kind(full, n) in ("pr", "none"):
+        frozen = frozen_parent(EPIC_HOME, n)
+    if frozen:
+        return True
+    decide("ask", f"Scope gate: issue #{n} is not in an open scope:frozen epic. New scope needs the user's yes in this "
+                  "conversation (or they add it as a sub-issue of the epic).")
+
+
 def main():
     try:
         event = json.load(sys.stdin)
@@ -230,23 +328,45 @@ def main():
     check_text(tool, inp, inp.get("command") or "")
 
     if tool == "mcp__github__create_branch":
-        decide("ask", NEW_BRANCH_MSG)
+        if check_new_branch(inp.get("owner"), inp.get("repo"), inp.get("branch") or ""):
+            decide("allow", FROZEN_MSG)
     if tool == "mcp__github__merge_pull_request":
         check_merge(inp.get("owner"), inp.get("repo"), inp.get("pullNumber"))
     if tool != "Bash":
         return
 
     cmd = inp.get("command") or ""
-    for seg in segments(cmd):
+    where = cwd
+    segs = segments(cmd)
+    allowed = False
+    for seg in segs:
         toks = tokens(seg)
+        if toks[:1] == ["cd"] and len(toks) > 1:
+            where = os.path.join(where, os.path.expanduser(toks[1]))
         if toks[:3] == ["gh", "pr", "merge"]:
             check_merge(*gh_merge_target(toks))
         if toks[:1] == ["git"]:
             sub, args = git_call(toks)
-            if creates_branch(sub, args):
-                decide("ask", NEW_BRANCH_MSG)
+            name = creates_branch(sub, args)
+            if name is not None:
+                d = toks[toks.index("-C") + 1] if "-C" in toks[:toks.index(sub)] else where
+                d = os.path.join(where, os.path.expanduser(d))
+                if name == "":
+                    name = git_out(d, "rev-parse", "--abbrev-ref", "HEAD") or ""
+                if sub == "push" and name and git_out(d, "ls-remote", "--heads", "origin", name):
+                    continue   # branch already on the remote: not new
+                allowed = check_new_branch(*origin_repo(d), name) or allowed
     if os.environ.get("CLAUDE_RELEASE_OWNER") != "1" and is_release(cmd, cwd):
         decide("deny", RELEASE_MSG)
+    # Auto-approve only a bare `git [-C dir] <sub> ...` of plain words: no compound, substitution,
+    # redirect, env prefix or `-c` setting, since those can run a program the user never saw.
+    toks = cmd.split()
+    plain = all(re.fullmatch(r"[A-Za-z0-9._/@:+-]+", t) for t in toks)
+    if allowed and len(segs) == 1 and plain and toks[0] == "git":
+        if toks[1] == "-C":
+            toks = toks[2:]
+        if not toks[1].startswith("-"):
+            decide("allow", FROZEN_MSG)
 
 
 if __name__ == "__main__":
