@@ -34,6 +34,8 @@ While your PR waits, review others' PRs or plan your next issue in an issue comm
 Branch off `dev`, never `main`. PR into `dev`. Promote `dev` → `main` only when I ask.
 Land PRs with a merge commit once green and reviewed. After a promotion I asked for, fast-forward `dev` to `main` so they stay equal.
 
+🛑 **CI can't run? Local checks stand in for it.** CI can't run when a job fails to start with a billing or quota error, or is still queued after 30 minutes. A slow job that is running is not stuck: wait for it. Run what the CI job would run, then post on the PR the commands, the commit they ran on and the results. That comment is the green. A repo with no CI job: post what you checked by hand (diff read, links opened, the page built). A PR that only copies playbook files: each changed file is a `dest` in the playbook's `.github/sync.yml` and its `git hash-object` matches its `source` there; `python3 -m py_compile` passes on any `.py` and `python3 -m json.tool` on any `.json`. Don't wait on a stuck CI, and don't merge with nothing posted.
+
 ## Checking before claiming
 
 - Ground every claim about code in `path:line`. **"Couldn't verify" is a good answer. Guessing is not.**
