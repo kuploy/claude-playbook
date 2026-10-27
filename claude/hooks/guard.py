@@ -369,7 +369,7 @@ def listed(prs):
 
 def role_of(ref):
     r = ROLE_BRANCH.match(ref)
-    return r.group(1) if r else ref   # a branch without a role holds a writer slot of its own
+    return r.group(1).lower() if r else ref   # a branch without a role holds a writer slot of its own
 
 
 def check_role(full, name, mine, pattern, lead):
@@ -379,8 +379,8 @@ def check_role(full, name, mine, pattern, lead):
     if not m:
         decide("deny", f"Rule ({pattern} in {full}): a branch reads feat/<role>/<issue>-slug, with your role from "
                        f"your spawn brief or Ed. '{name}' has no role.")
-    role = m.group(1)
-    if role == lead and not lead_writes:
+    role = m.group(1).lower()
+    if lead and role == lead.lower() and not lead_writes:
         decide("deny", f"Rule ({pattern} in {full}): the lead, {lead}, doesn't write code here. Hand the issue to a writer.")
     held = [(n, ref) for n, ref in mine if role_of(ref) == role]
     if held:

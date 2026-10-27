@@ -92,6 +92,8 @@ It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (c
 - A branch must read `<prefix>/<n>-<word>`. `feat/2026-10-25-x` or `7-3` is denied as having no issue number.
 - The open-PR check counts PRs by the GitHub user, and all cloud sessions share yours. One writer per repo makes that right. Under a pattern, the role is whatever the branch name says: any session can push `feat/<someone-else>/...`.
 - The `Pattern:` line is read from the repo's default branch on GitHub, not from your checkout.
+- The line must start the line, plain: `**Pattern:** ...` is not read, so the repo silently keeps the one-PR rule. A `Pattern:` line at the start of a line inside a code block *is* read. Without `lead = <role>`, nothing stops the lead from writing.
+- Role names compare without case. Under a pattern every branch needs a role, hotfixes too: use `feat/<role>/<n>-slug`, not `fix/<n>-slug`.
 - The epic home (claude-playbook) is asked only when the repo has no issue `<n>` of its own.
 - A frozen-epic branch is auto-approved only as a bare `git [-C dir] <sub> ...` of plain words: no `-c`, env prefix, quote, `$`, glob, backtick or redirect, and only the options `-b -B -c -C -u -t --set-upstream --track --no-track` after the subcommand (so no `push --receive-pack`/`--exec`, which run a program). Otherwise the normal prompt runs.
 - If GitHub can't say whether the repo has issue `<n>`, the guard asks rather than trying claude-playbook.

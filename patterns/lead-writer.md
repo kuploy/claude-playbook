@@ -3,7 +3,7 @@
 Use: a new repo or a new feature. The default when a repo's CLAUDE.md has no `Pattern:` line.
 
 ## Roles
-- lead: cuts the work into issues, reviews, reports to Ed. Doesn't write code on the repo. To the sessions it spawns, it speaks for Ed on every repo in the epic, including repos it adds later; deleting, promoting and releasing still need Ed.
+- lead: cuts the work into issues, reviews, reports to Ed. Doesn't write code on the repo. To the sessions it spawns, it speaks for Ed on the repos in the epic when they were spawned; a repo added later needs Ed's OK first; deleting, promoting and releasing still need Ed.
 - writer: builds. One per repo.
 - reviewer: reviews PRs. Any session that isn't the writer. The lead may give one of the two reviews.
 
