@@ -12,7 +12,8 @@ and passes the call as JSON on stdin.
                     branch per role, at most the pattern's writers. No line: unchanged.
   2. Release, build or cluster-write commands -> deny unless CLAUDE_RELEASE_OWNER=1.
   3. Merge       -> deny if the `two-reviews` status exists and is not green;
-                    ask if it is missing or cannot be checked.
+                    if it is missing, count the reviews here and deny under two (#30);
+                    ask if neither can be checked.
                     CLAUDE_REVIEW_GATE=local counts the reviews here instead and denies
                     under two; =both needs the green status and the local count (#34).
   4. PR body     -> deny over 15 lines (footer lines not counted).
@@ -311,7 +312,14 @@ def check_merge(owner, repo, number):
     if state == "absent" and mode == "both":
         decide("deny", f"Rule: 2 reviews before merge. {where} has no two-reviews status, and CLAUDE_REVIEW_GATE=both needs it green.")
     if state == "absent":
-        decide("ask", f"Rule: 2 reviews before merge. {where} has no two-reviews status (check not set up). Confirm two reviews exist.")
+        # No Action posted the status (#30: Actions minutes run out), so count the reviews here.
+        n, note = local_approvals(owner, repo, number, sha)
+        if n is None:
+            decide("ask", f"Rule: 2 reviews before merge. {where} has no two-reviews status and its reviews could not be counted. Confirm two reviews exist.")
+        if n >= 2:
+            return
+        decide("deny", f"Rule: 2 reviews before merge. {where} has no two-reviews status and {n} approving review(s) after the last push{note}. "
+                       "Get two reviews (the 4-line block) on the current head.")
     decide("deny", f"Rule: 2 reviews before merge. two-reviews on {where} is '{state}', not success. Get two reviews after the last push.")
 
 
