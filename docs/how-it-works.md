@@ -76,6 +76,7 @@ Then merge `claude/settings.json` into `~/.claude/settings.json`. Its `SessionSt
 | Rule | What it does |
 |---|---|
 | Scope gate on new branches (#13) | On `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u` and the GitHub create-branch tool: **denies** a name without an issue number (`feat/<n>-slug`) or a repo with another open PR of yours; **allows** if issue `<n>` (in that repo, else in claude-playbook) is a sub-issue of an open epic labelled `scope:frozen`; **asks you** otherwise or if GitHub can't be reached. To add scope, add the issue to the epic yourself |
+| Pattern branches (#29) | Only in a repo whose CLAUDE.md has a `Pattern:` line, in place of one open PR per repo: **denies** a branch that isn't `feat/<role>/<n>-slug`, a branch for the lead in lead-writer and release-train (the lead doesn't write), a second open branch for a role, and more roles than the pattern's writers (release-train 2, others 1). No line, or a name it doesn't know: the one-PR rule, as before |
 | Only the release owner releases | **Denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` writes. `CLAUDE_RELEASE_OWNER=1` exempts a session |
 | 2 reviews before merge | On a merge: **allows** if `two-reviews` is green, **denies** if red, **asks** if missing. With `CLAUDE_REVIEW_GATE=local` it counts the reviews itself and **denies** under two: see [enforcement.md](enforcement.md#claude_review_gate) |
 | Short PR bodies | **Denies** a PR body over 15 lines (footer not counted) |
@@ -89,7 +90,8 @@ It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (c
 - Matches command text. `git update-ref` or a script that runs git gets past it.
 - `git push -u` of a branch already on the remote is not gated. A first push outside a frozen epic asks again, even if you approved its `checkout -b`.
 - A branch must read `<prefix>/<n>-<word>`. `feat/2026-10-25-x` or `7-3` is denied as having no issue number.
-- The open-PR check counts PRs by the GitHub user, and all cloud sessions share yours. One writer per repo makes that right.
+- The open-PR check counts PRs by the GitHub user, and all cloud sessions share yours. One writer per repo makes that right. Under a pattern, the role is whatever the branch name says: any session can push `feat/<someone-else>/...`.
+- The `Pattern:` line is read from the repo's default branch on GitHub, not from your checkout.
 - The epic home (claude-playbook) is asked only when the repo has no issue `<n>` of its own.
 - A frozen-epic branch is auto-approved only as a bare `git [-C dir] <sub> ...` of plain words: no `-c`, env prefix, quote, `$`, glob, backtick or redirect, and only the options `-b -B -c -C -u -t --set-upstream --track --no-track` after the subcommand (so no `push --receive-pack`/`--exec`, which run a program). Otherwise the normal prompt runs.
 - If GitHub can't say whether the repo has issue `<n>`, the guard asks rather than trying claude-playbook.
@@ -102,6 +104,7 @@ It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (c
 ```sh
 echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | python3 .claude/hooks/guard.py
 ```
+In a repo with a `Pattern:` line, `git checkout -b feat/9-x` (no role) should also print `"deny"`.
 
 **Canary test** (once per session type, in a **new** session): ask it to run `echo docker/release.sh`, then `git checkout -b canary-test`, one at a time, and report each outcome without retrying.
 - First refused ("only the release owner") → hook runs.
