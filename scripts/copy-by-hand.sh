@@ -60,7 +60,7 @@ for r in "${repos[@]}"; do
     if git diff --cached --quiet; then echo "$r: already up to date"; exit 0; fi
     if [ $dry -eq 1 ]; then echo "$r: would open PR into $base:"; git diff --cached --stat; exit 0; fi
     git commit -qm "Sync files from claude-playbook" && git push -q -u origin "$branch" || { echo "$r: push failed"; exit 1; }
-    body="Copied from ceduth/claude-playbook by scripts/copy-by-hand.sh:
+    body="Copied from kuploy/claude-playbook by scripts/copy-by-hand.sh:
 $(echo "$pairs" | awk '{print "- " $2}')"
     gh pr create --draft --base "$base" --title "Sync files from claude-playbook" --body "$body" \
       || echo "$r: pushed $branch, open the PR by hand"

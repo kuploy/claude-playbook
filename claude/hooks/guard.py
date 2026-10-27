@@ -31,7 +31,7 @@ from datetime import datetime
 
 NEW_BRANCH_MSG = "Rule: never create a new branch without asking first. Approve only if the user said so in this conversation."
 FROZEN_MSG = "Scope gate: branch for a sub-issue of an open scope:frozen epic. Approved by the freeze."
-EPIC_HOME = "ceduth/claude-playbook"   # where epics and most of their issues live
+EPIC_HOME = "kuploy/claude-playbook"   # where epics and most of their issues live
 # Options a frozen-epic branch command may carry and still be auto-approved. None runs a program.
 SAFE_OPTS = {"-b", "-B", "-c", "-C", "-u", "--set-upstream", "-t", "--track", "--no-track"}
 RELEASE_MSG = ("Rule: only the release owner session runs releases, builds or cluster writes "

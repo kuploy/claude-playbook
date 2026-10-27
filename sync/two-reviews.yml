@@ -1,4 +1,4 @@
-# Synced from ceduth/claude-playbook (sync/two-reviews.yml). Don't edit here; edit the playbook.
+# Synced from kuploy/claude-playbook (sync/two-reviews.yml). Don't edit here; edit the playbook.
 # Posts a commit status "two-reviews" on the PR head. Mark that status as required in the branch ruleset.
 # How reviews are counted: see docs/how-it-works.md in the playbook.
 name: two-reviews

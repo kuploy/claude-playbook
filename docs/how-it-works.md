@@ -63,7 +63,7 @@ Cloud sessions get these from my Claude account settings. Desktop sessions get t
 ```
 
 ```sh
-git clone git@github.com:ceduth/claude-playbook.git ~/Devl/Projects/claude-playbook
+git clone git@github.com:kuploy/claude-playbook.git ~/Devl/Projects/claude-playbook
 ln -s ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents
 ```
 

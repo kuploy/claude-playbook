@@ -81,7 +81,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 ## Working with other sessions
 
 - One writer per repo. Anyone may read any repo.
-- A repo picks how its sessions work with one line in its CLAUDE.md: `Pattern: <name>, lead = <role>`. Read [`patterns/<name>.md`](https://github.com/ceduth/claude-playbook/tree/main/patterns) for its roles, branches, reviews and spawn cap; where it differs from this section, it wins. `lead = <role>` names the session that holds the pattern's "Reports to Ed" role (the lead, the writer or the release owner): it spawns, if the pattern allows, and reports. The one-branch-per-repo rule above still holds, unless Ed approves #29 and the guard learns patterns. No `Pattern:` line means `lead-writer`, which is what this section describes.
+- A repo picks how its sessions work with one line in its CLAUDE.md: `Pattern: <name>, lead = <role>`. Read [`patterns/<name>.md`](https://github.com/kuploy/claude-playbook/tree/main/patterns) for its roles, branches, reviews and spawn cap; where it differs from this section, it wins. `lead = <role>` names the session that holds the pattern's "Reports to Ed" role (the lead, the writer or the release owner): it spawns, if the pattern allows, and reports. The one-branch-per-repo rule above still holds, unless Ed approves #29 and the guard learns patterns. No `Pattern:` line means `lead-writer`, which is what this section describes.
 - Work needs 2 reviews before it merges. Each review is one PR comment in exactly this format, so the check can count it:
   Reviewer: <your session name>
   Verdict: approve   (or: changes requested)
