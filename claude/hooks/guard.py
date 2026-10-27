@@ -7,6 +7,9 @@ and passes the call as JSON on stdin.
   1. New branch  -> scope gate (#13): deny if the name has no issue number or the repo
                     has another open PR of yours; allow if the issue is a sub-issue of an
                     open `scope:frozen` epic; else ask the user.
+                    A repo whose CLAUDE.md has a `Pattern:` line gets the pattern's branch
+                    rule instead of one PR per repo (#29): `feat/<role>/<n>-slug`, one open
+                    branch per role, at most the pattern's writers. No line: unchanged.
   2. Release, build or cluster-write commands -> deny unless CLAUDE_RELEASE_OWNER=1.
   3. Merge       -> deny if the `two-reviews` status exists and is not green;
                     ask if it is missing or cannot be checked.
@@ -32,6 +35,9 @@ from datetime import datetime
 NEW_BRANCH_MSG = "Rule: never create a new branch without asking first. Approve only if the user said so in this conversation."
 FROZEN_MSG = "Scope gate: branch for a sub-issue of an open scope:frozen epic. Approved by the freeze."
 EPIC_HOME = "kuploy/claude-playbook"   # where epics and most of their issues live
+# Per pattern: (writers, whether the lead named by `lead = <role>` may write). Mirrors patterns/*.md.
+PATTERNS = {"lead-writer": (1, False), "peer-review": (1, True), "release-train": (2, False), "solo-audit": (1, True)}
+ROLE_BRANCH = re.compile(r"^feat/([A-Za-z0-9._-]+)/\d+-[A-Za-z]")
 # Options a frozen-epic branch command may carry and still be auto-approved. None runs a program.
 SAFE_OPTS = {"-b", "-B", "-c", "-C", "-u", "--set-upstream", "-t", "--track", "--no-track"}
 RELEASE_MSG = ("Rule: only the release owner session runs releases, builds or cluster writes "
@@ -349,6 +355,42 @@ def frozen_parent(repo, n):
     return None if out is None else out == "true"
 
 
+def repo_pattern(full):
+    """(pattern, lead role) from the `Pattern: <name>, lead = <role>` line in the repo's CLAUDE.md.
+    None when there is no line, the name is unknown or GitHub can't be read: the one-PR rule applies."""
+    text = gh("api", "-H", "Accept: application/vnd.github.raw", f"repos/{full}/contents/CLAUDE.md")
+    m = re.search(r"^Pattern:\s*([a-z-]+)(?:\s*,\s*lead\s*=\s*([A-Za-z0-9._-]+))?", text or "", re.M)
+    return (m.group(1), m.group(2)) if m and m.group(1) in PATTERNS else None
+
+
+def listed(prs):
+    return ", ".join(f"#{n} {ref}" for n, ref in prs)
+
+
+def role_of(ref):
+    r = ROLE_BRANCH.match(ref)
+    return r.group(1).lower() if r else ref   # a branch without a role holds a writer slot of its own
+
+
+def check_role(full, name, mine, pattern, lead):
+    """Branch rule of the repo's pattern (#29). Best effort: every session pushes as Ed, so a role is what the branch says."""
+    writers, lead_writes = PATTERNS[pattern]
+    m = ROLE_BRANCH.match(name)
+    if not m:
+        decide("deny", f"Rule ({pattern} in {full}): a branch reads feat/<role>/<issue>-slug, with your role from "
+                       f"your spawn brief or Ed. '{name}' has no role.")
+    role = m.group(1).lower()
+    if lead and role == lead.lower() and not lead_writes:
+        decide("deny", f"Rule ({pattern} in {full}): the lead, {lead}, doesn't write code here. Hand the issue to a writer.")
+    held = [(n, ref) for n, ref in mine if role_of(ref) == role]
+    if held:
+        decide("deny", f"Rule ({pattern} in {full}): one open branch per writer. {role} already has open: {listed(held)}. "
+                       "Finish that first; review fixes stay on its branch.")
+    if len({role_of(ref) for _, ref in mine} | {role}) > writers:
+        decide("deny", f"Rule ({pattern} in {full}): at most {writers} writer(s). Open now: {listed(mine)}. "
+                       "Wait for one to merge.")
+
+
 def check_new_branch(owner, repo, name):
     """Scope gate (#13). One branch per repo until merged; frozen-epic work needs no prompt."""
     if name == "" or name is None:
@@ -362,13 +404,16 @@ def check_new_branch(owner, repo, name):
     pulls = me and gh("api", f"repos/{owner}/{repo}/pulls?state=open&per_page=100")
     if not pulls:
         decide("ask", NEW_BRANCH_MSG + " Could not reach GitHub to check scope.")
-    others = ", ".join(f"#{p['number']} {p['head']['ref']}" for p in json.loads(pulls)
-                       if p["user"]["login"] == me and p["head"]["ref"] != name)
-    if others:
-        decide("deny", f"Rule: one branch per repo until it merges. {owner}/{repo} already has open: {others}. "
-                       "Finish that first; review fixes stay on its branch. While it waits, review others or plan in an issue comment.")
+    mine = [(p["number"], p["head"]["ref"]) for p in json.loads(pulls)
+            if p["user"]["login"] == me and p["head"]["ref"] != name]
     n = m.group(1)
     full = f"{owner}/{repo}"
+    pattern = repo_pattern(full)
+    if pattern:
+        check_role(full, name, mine, *pattern)
+    elif mine:
+        decide("deny", f"Rule: one branch per repo until it merges. {full} already has open: {listed(mine)}. "
+                       "Finish that first; review fixes stay on its branch. While it waits, review others or plan in an issue comment.")
     frozen = frozen_parent(full, n)
     # The epic home is asked only when this repo has no issue n of its own (none, or it is a PR).
     # A failed lookup is not "no issue": it falls through to ask.
