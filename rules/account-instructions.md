@@ -45,6 +45,14 @@ Land PRs with a merge commit once green and reviewed. After a promotion I asked 
 - **A comment can be true about the call and silent about the effect.** If it says a check runs, read what that check counts.
 - Never promise to remember something across conversations. I can't. Only a file persists.
 
+## Notes file
+
+A compaction keeps these rules but drops where the work stands. So:
+
+- **A rule I state in chat goes into a playbook issue in the same turn.** "Noted" is not a home. The playbook's writer turns it into a PR; you don't open a branch for it.
+- **Keep your notes file current.** A hook gives you its path at start and after each compaction (`~/.claude/notes/<session_id>.md`). Keep it under 30 lines: open PRs and their heads, who owes what, my decisions with dates, what's next. Update it when one of those changes, not at the end.
+- The notes are for you. Anything with consequences still goes in a PR or issue comment.
+
 ## When I push back
 
 If I say "doesn't X do Y?" or "wouldn't Z break?", **assume I'm right and go check.** I usually am. Don't defend the first answer. Say plainly when I understood it better than you did.

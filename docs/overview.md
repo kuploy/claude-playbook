@@ -43,7 +43,7 @@ Repo-specific ownership stays in each repo's CLAUDE.md.
 
 - **GitHub** (rulesets, CODEOWNERS, required checks) is what refuses things. Not third-party.
 - **[policy-bot](https://github.com/palantir/policy-bot/blob/v1.34.1/README.md)** (open source) can count reviews. Not tested with plain comments.
-- **Claude Code hooks** (`claude/hooks/guard.py`) refuse or ask on: new branches, release commands, merges without `two-reviews`. Installed per repo in `.claude/` by the sync, so desktop and cloud sessions both get it. See [how-it-works.md](how-it-works.md#the-guard-hook).
+- **Claude Code hooks** (`claude/hooks/guard.py`) refuse or ask on: new branches, release commands, merges without `two-reviews`. They run from your copy of the playbook, so every session gets them in every repo, once that computer or cloud environment is set up. See [how-it-works.md](how-it-works.md#the-guard-hook).
 - **Nothing** enforces how a session talks or how old it gets. Only `autoCompactWindow` limits the age.
 
 Details of the sync and the review check: [how-it-works.md](how-it-works.md).
