@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Manual stand-in for the sync Action (use when Actions minutes run out).
-# Reads repos and file pairs from .github/sync.yml, opens one draft PR per repo.
-# Needs: git with SSH access to the repos, and the gh CLI (without gh it tells you which PRs to open by hand).
+# Reads file pairs from .github/sync.yml and repos from your playbook config (#44), opens one draft PR per repo.
+# Needs: git with SSH access to the repos, python3, and the gh CLI (without gh it tells you which PRs to open by hand).
 #
 #   scripts/copy-by-hand.sh --list                         show what would be used, change nothing
 #   scripts/copy-by-hand.sh --dry-run [options]            clone, copy, show the diff, push nothing
@@ -10,10 +10,11 @@
 # Options:
 #   --only <text>   only the file pairs whose line in sync.yml contains <text>
 #                   e.g. --only pull_request_template
-# With no owner/repo arguments it uses every repo listed in sync.yml.
+# With no owner/repo arguments it uses every repo in the config's "repos":
+# $CLAUDE_PLAYBOOK_CONFIG, else ~/.claude/playbook-config.json.
 set -uo pipefail
 
-usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; }
 
 here=$(cd "$(dirname "$0")/.." && pwd)
 cfg="$here/.github/sync.yml"
@@ -30,7 +31,8 @@ while [ $# -gt 0 ]; do
 done
 
 if [ ${#repos[@]} -eq 0 ]; then
-  repos=($(sed -n '/^ *repos:/,/^ *files:/p' "$cfg" | grep -E '^ +[A-Za-z0-9._-]+/[A-Za-z0-9._-]+ *$' | tr -d ' '))
+  conf=${CLAUDE_PLAYBOOK_CONFIG:-$HOME/.claude/playbook-config.json}
+  repos=($(python3 -c 'import json, sys; print("\n".join(json.load(open(sys.argv[1])).get("repos", [])))' "$conf" 2>/dev/null))
 fi
 pairs=$(awk '/^ *- source:/{s=$3} /^ *dest:/{print s" "$2}' "$cfg")
 [ -n "$only" ] && pairs=$(echo "$pairs" | grep -F -- "$only")

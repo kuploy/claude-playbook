@@ -7,7 +7,8 @@
 |---|---|---|
 | New branch, scope gate (#13): **denies** no issue number or another open PR in the repo, **allows** a sub-issue of an open `scope:frozen` epic, else **asks** | Best effort (matches command text) | Each row self-tested with real and fake `gh`, 2026-10-25. Bypass and Auto modes untested. |
 | Pattern branches (#29), only with a `Pattern:` line: **denies** a branch without `feat/<role>/`, a lead that doesn't write, a second branch per role, more roles than the pattern's writers | Best effort: the role is what the branch says | Tested with a fake `gh` (21 cases), 2026-10-27. Canary not run |
-| Release, build, cluster writes: **denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` write verbs, unless `CLAUDE_RELEASE_OWNER=1` | Enforced for those commands. An unusual command gets past. | Tested cloud and desktop |
+| Owner-only commands (#44): **denies** each command in your config's `owner_only`, unless the session has its `allow_env` variable set to `1` | Enforced for those commands. An unusual command gets past. No config: none | Built-in version tested cloud and desktop. Config version: canary after setup |
+| Config missing or unreadable | Owner-only commands not blocked. **Each new session is told** | Self-tested |
 | Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't. Missing (#30): counts the reviews itself like `local` below, **denies** under two. **Asks** only if GitHub can't be read | Enforced on machines with the hook. Trusts the typed `Reviewer:` name; a merge from the web UI gets past | Tested with a fake `gh` (10 cases), 2026-10-27. |
 | Merge with `CLAUDE_REVIEW_GATE=local` (#34): counts approving `Reviewer:` blocks after the push, **denies** under two, **asks** only if GitHub can't be reached or replies with something unreadable | Enforced on machines with the hook. A merge from the web UI or a phone gets past | Tested with a fake `gh` (14 cases), 2026-10-26. Not switched on anywhere. |
 | PR body over 15 lines (GitHub tools and `gh pr create/edit`): **denies** | Enforced for those tools. Footer lines not counted | In all 14 repos. Refused in a live cloud session, 2026-10-25 |
@@ -20,13 +21,12 @@
 ## Checks, GitHub, tooling
 | What | Level | Status |
 |---|---|---|
-| `two-reviews` check: two different `Reviewer:` blocks after the last push, from people with write access | Enforced once live | **Not live**: Actions billing limit (seen blocking jest on epay-gateway). Not marked required in any ruleset. Trusts the `Reviewer:` name, not the `Ran:` text. |
+| `two-reviews` check: two different `Reviewer:` blocks after the last push, from people with write access | Enforced once live | **Not live**: Actions billing limit (seen blocking a test job). Not marked required in any ruleset. Trusts the `Reviewer:` name, not the `Ran:` text. |
 | Rulesets, CODEOWNERS, required reviews | None | Not set up |
 | One writer per repo | Willpower | Needs per-repo tokens. Not built. |
 | PR template with the 4-line review block (13 repos) | Convention | Merged. Applies from each repo's default branch. |
 | Sync-only PRs need one hash check, not two reviews | Convention | Recorded in [how-it-works.md](how-it-works.md) |
 | Sync Action (copies files to repos) | Tooling | **Disabled**: quota. Use `scripts/copy-by-hand.sh`. |
-| Release gate in kuploy-cloud (`dev` = `main`, core checked by hand) | Willpower, partly `release.sh` | In its CLAUDE.md. `release.sh` ref-locks cloud and only prints core's sha. |
 
 ## Prompt, settings, habits
 | What | Level | Status |
@@ -66,13 +66,13 @@ Which evidence the guard wants before a merge (#34).
 | Where to set it | Cloud: the environment's variables (untested). Desktop: `"env": {"CLAUDE_REVIEW_GATE": "local"}` in `.claude/settings.local.json` (that checkout only). Not in a repo's `.claude/settings.json`: that file is shared through git. Takes effect at session start. |
 | Limit | It only guards sessions that run the hook. The status, when something posts it and a ruleset requires it, binds everyone. |
 
-## `CLAUDE_RELEASE_OWNER=1`
-The guard denies release commands for every session except one with this in its environment.
+## The owner-only switch
+The guard denies your config's `owner_only` commands for every session except one with its `allow_env` variable set to `1` (below, `CLAUDE_RELEASE_OWNER`).
 
 | | |
 |---|---|
-| Where it is set | `.claude/settings.local.json` in the release checkout, `~/Devl/Projects/Kuploy/kuploy-cloud`. Git-ignored. Content: `{"env":{"CLAUDE_RELEASE_OWNER":"1"}}`. |
-| Who it exempts | **Every** session opened in that folder. Use the folder for the release session only. |
+| Where it is set | `.claude/settings.local.json` in the owner's checkout. Git-ignored. Content: `{"env":{"CLAUDE_RELEASE_OWNER":"1"}}`. |
+| Who it exempts | **Every** session opened in that folder. Use the folder for the owner session only. |
 | When it takes effect | At session start. Start a **new** session after editing. |
 | Terminal alternative | `CLAUDE_RELEASE_OWNER=1 claude` exempts one process. |
-| Proof | Non-owner cloud session on kuploy-cloud: **refused**. New desktop session in the release folder: **printed**. A same-folder control run was not done. |
+| Proof (built-in version, before #44) | Non-owner cloud session: **refused**. New desktop session in the owner folder: **printed**. A same-folder control run was not done. |

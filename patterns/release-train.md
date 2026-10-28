@@ -1,6 +1,6 @@
 # Release train
 
-Use: repos that ship a release, such as kuploy-cloud and core.
+Use: repos that ship a release.
 
 ## Roles
 - writer: builds. Up to 2, each with its own role name.
