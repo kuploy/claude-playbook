@@ -27,11 +27,16 @@ def config_problem():
     rule = conf.get("owner_only", {}) if isinstance(conf, dict) else None
     if not isinstance(rule, dict) or not isinstance(rule.get("commands", []), list):
         return f"The playbook config {path} has a bad owner_only part: owner-only commands are not blocked."
+    for k in ("allow_env", "message"):
+        if k in rule and not isinstance(rule[k], str):
+            return f"The playbook config {path} has a bad owner_only {k} ({rule[k]!r}): it must be text."
     for c in rule.get("commands", []):
         try:
             re.compile(c["match"])
         except (TypeError, KeyError, re.error):
             return f"The playbook config {path} has a bad owner_only command ({c!r}): it blocks nothing."
+        if "only_in" in c and not isinstance(c["only_in"], str):
+            return f"The playbook config {path} has a bad only_in ({c!r}): it must be text, so that command is blocked everywhere."
     if not rule.get("commands"):
         return f"The playbook config {path} lists no owner-only commands: none are blocked."
     return None
