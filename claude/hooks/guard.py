@@ -11,7 +11,8 @@ and passes the call as JSON on stdin.
                     rule instead of one PR per repo (#29): `feat/<role>/<n>-slug`, one open
                     branch per role, at most the pattern's writers. No line: unchanged.
   2. Release, build or cluster-write commands -> deny unless CLAUDE_RELEASE_OWNER=1.
-  3. Merge       -> deny if the `two-reviews` status exists and is not green;
+  3. Merge       -> no opinion on a sync PR whose files all match the playbook (#40);
+                    else deny if the `two-reviews` status exists and is not green;
                     if it is missing, count the reviews here and deny under two (#30);
                     ask if neither can be checked.
                     CLAUDE_REVIEW_GATE=local counts the reviews here instead and denies
@@ -284,11 +285,40 @@ def count_approvals(owner, repo, number, sha):
     return sum(latest.values()), note
 
 
+def blob(full, path, ref):
+    return gh("api", f"repos/{full}/contents/{path}?ref={ref}", "--jq", ".sha")
+
+
+def sync_copy(owner, repo, number, sha):
+    """True when every file the PR changes is a sync.yml dest whose blob at the head equals its source on
+    playbook main (#40). Any other file, a deletion, a mismatch or an unreadable reply: False, and the review rules apply."""
+    if repo == EPIC_HOME.split("/")[1]:
+        return False
+    conf = gh("api", f"repos/{EPIC_HOME}/contents/.github/sync.yml?ref=main", "-H", "Accept: application/vnd.github.raw")
+    pairs = dict((d, s) for s, d in re.findall(r"-\s*source:\s*(\S+)\s*\n\s*dest:\s*(\S+)", conf or ""))
+    files = gh("api", "--paginate", f"repos/{owner}/{repo}/pulls/{number}/files", "--jq", '.[] | "\\(.filename) \\(.status)"')
+    if not pairs or not files:
+        return False
+    for line in files.splitlines():
+        name, status = line.split(" ")
+        if name not in pairs or status == "removed":
+            return False
+        head = blob(f"{owner}/{repo}", name, sha)
+        if not head or head != blob(EPIC_HOME, pairs[name], "main"):
+            return False
+    return True
+
+
 def check_merge(owner, repo, number):
     where = f"{owner}/{repo}#{number}"
     if not (owner and repo and number):
         decide("ask", "Rule: 2 reviews before merge. Could not tell which PR this merges. Confirm two reviews exist.")
     sha = gh("api", f"repos/{owner}/{repo}/pulls/{number}", "--jq", ".head.sha")
+    try:
+        if sha and sync_copy(owner, repo, number, sha):
+            return   # a sync PR needs one check, not two reviews (docs/how-it-works.md), and this was it
+    except Exception:
+        pass
     mode = os.environ.get("CLAUDE_REVIEW_GATE", "status").strip().lower()
     if mode not in ("status", "local", "both"):
         decide("ask", f"Rule: 2 reviews before merge. CLAUDE_REVIEW_GATE='{mode}' is not status, local or both. Confirm two reviews exist.")
