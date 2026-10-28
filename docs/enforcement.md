@@ -8,7 +8,7 @@
 | New branch, scope gate (#13): **denies** no issue number or another open PR in the repo, **allows** a sub-issue of an open `scope:frozen` epic, else **asks** | Best effort (matches command text) | Each row self-tested with real and fake `gh`, 2026-10-25. Not yet copied to the other repos. Bypass and Auto modes untested. |
 | Pattern branches (#29), only with a `Pattern:` line: **denies** a branch without `feat/<role>/`, a lead that doesn't write, a second branch per role, more roles than the pattern's writers | Best effort: the role is what the branch says | Tested with a fake `gh` (21 cases), 2026-10-27. Not synced to the repos yet. Canary not run |
 | Release, build, cluster writes: **denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` write verbs, unless `CLAUDE_RELEASE_OWNER=1` | Enforced for those commands. An unusual command gets past. | Tested cloud and desktop |
-| Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't, **asks** if missing or unchecked | Enforced once the check is live | Only tested with a fake `gh`. Today it always asks. |
+| Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't. Missing (#30): counts the reviews itself like `local` below, **denies** under two. **Asks** only if GitHub can't be read | Enforced on machines with the hook. Trusts the typed `Reviewer:` name; a merge from the web UI gets past | Tested with a fake `gh` (10 cases), 2026-10-27. Not synced to the repos yet. |
 | Merge with `CLAUDE_REVIEW_GATE=local` (#34): counts approving `Reviewer:` blocks after the push, **denies** under two, **asks** only if GitHub can't be reached or replies with something unreadable | Enforced on machines with the hook. A merge from the web UI or a phone gets past | Tested with a fake `gh` (14 cases), 2026-10-26. Not switched on anywhere. |
 | PR body over 15 lines (GitHub tools and `gh pr create/edit`): **denies** | Enforced for those tools. Footer lines not counted | In all 14 repos. Refused in a live cloud session, 2026-10-25 |
 | Review comment (`Reviewer:`) missing a line or over 5 lines after the block: **denies** | Enforced for those tools | In all 14 repos. Refused in a live cloud session, 2026-10-25 |
@@ -58,7 +58,7 @@ Which evidence the guard wants before a merge (#34).
 
 | | |
 |---|---|
-| `status` (default) | The `two-reviews` commit status. Missing means **ask**, so a "yes" merges with no reviews. |
+| `status` (default) | The `two-reviews` commit status. Missing: counts the reviews as `local` does (#30), since Actions may not run. |
 | `local` | The guard counts the reviews itself, the way `sync/two-reviews.yml` does: the latest block per `Reviewer:` name, from someone with write access, posted after GitHub received the head (earliest check suite, else the committer date), verdict starting `approve`, `Ran:` and `Would catch:` filled. Under two: **deny**. With no check suites readable it counts from the commit date and says so. It **ignores** the `two-reviews` status, even a red one: use `both` for that. Needs neither Actions nor the console. |
 | `both` | Both of the above. A missing status is a **deny**, not an ask. |
 | Any other value | **Ask**. Case and spaces are ignored, so ` Local ` is `local`; a typo like `locl` does not silently mean `status`. |
