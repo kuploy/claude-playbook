@@ -77,7 +77,7 @@ The playbook is the same for everyone. What is yours lives in one file, `config.
 - **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command. With `only_in`, the command counts only when that text is in the folder name or the command.
 - **`epic_home`**: the repo where your epics live. The new-branch check looks there for an issue the current repo doesn't have.
 
-Every part is optional. With no config file, nothing is refused as owner-only, and the new-branch check only looks in the current repo. Each new session says so when the file is missing or can't be read.
+Every part is optional. With no config file, nothing is refused as owner-only, and the new-branch check only looks in the current repo. Each new session says so when the file is missing, can't be read, or lists no owner-only commands.
 
 ## Setting up
 

@@ -32,6 +32,8 @@ def config_problem():
             re.compile(c["match"])
         except (TypeError, KeyError, re.error):
             return f"The playbook config {path} has a bad owner_only command ({c!r}): it blocks nothing."
+    if not rule.get("commands"):
+        return f"The playbook config {path} lists no owner-only commands: none are blocked."
     return None
 
 
