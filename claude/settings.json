@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "F=$HOME/Devl/Projects/claude-playbook/claude/hooks/notes.py; [ -f $F ] && exec python3 $F; exit 0"
+            "command": "F=\"$HOME/Devl/Projects/claude-playbook/claude/hooks/notes.py\"; [ -f \"$F\" ] && exec python3 \"$F\"; echo 'No playbook checks in this session: the playbook copy is missing.'; exit 0"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "F=$HOME/Devl/Projects/claude-playbook/claude/hooks/guard.py; [ -f $F ] && exec python3 $F; exit 0"
+            "command": "F=\"$HOME/Devl/Projects/claude-playbook/claude/hooks/guard.py\"; [ -f \"$F\" ] && exec python3 \"$F\"; exit 0"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "F=$HOME/Devl/Projects/claude-playbook/claude/hooks/guard.py; [ -f $F ] && exec python3 $F; exit 0"
+            "command": "F=\"$HOME/Devl/Projects/claude-playbook/claude/hooks/guard.py\"; [ -f \"$F\" ] && exec python3 \"$F\"; exit 0"
           }
         ]
       }

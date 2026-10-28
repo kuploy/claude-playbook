@@ -6,15 +6,16 @@
 | What | Level | Status |
 |---|---|---|
 | New branch, scope gate (#13): **denies** no issue number or another open PR in the repo, **allows** a sub-issue of an open `scope:frozen` epic, else **asks** | Best effort (matches command text) | Each row self-tested with real and fake `gh`, 2026-10-25. Bypass and Auto modes untested. |
-| Pattern branches (#29), only with a `Pattern:` line: **denies** a branch without `feat/<role>/`, a lead that doesn't write, a second branch per role, more roles than the pattern's writers | Best effort: the role is what the branch says | Tested with a fake `gh` (21 cases), 2026-10-27. Not synced to the repos yet. Canary not run |
+| Pattern branches (#29), only with a `Pattern:` line: **denies** a branch without `feat/<role>/`, a lead that doesn't write, a second branch per role, more roles than the pattern's writers | Best effort: the role is what the branch says | Tested with a fake `gh` (21 cases), 2026-10-27. Canary not run |
 | Release, build, cluster writes: **denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` write verbs, unless `CLAUDE_RELEASE_OWNER=1` | Enforced for those commands. An unusual command gets past. | Tested cloud and desktop |
-| Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't. Missing (#30): counts the reviews itself like `local` below, **denies** under two. **Asks** only if GitHub can't be read | Enforced on machines with the hook. Trusts the typed `Reviewer:` name; a merge from the web UI gets past | Tested with a fake `gh` (10 cases), 2026-10-27. Not synced to the repos yet. |
+| Merge (`gh pr merge`, GitHub merge tool): allows if `two-reviews` is green, **denies** if it exists and isn't. Missing (#30): counts the reviews itself like `local` below, **denies** under two. **Asks** only if GitHub can't be read | Enforced on machines with the hook. Trusts the typed `Reviewer:` name; a merge from the web UI gets past | Tested with a fake `gh` (10 cases), 2026-10-27. |
 | Merge with `CLAUDE_REVIEW_GATE=local` (#34): counts approving `Reviewer:` blocks after the push, **denies** under two, **asks** only if GitHub can't be reached or replies with something unreadable | Enforced on machines with the hook. A merge from the web UI or a phone gets past | Tested with a fake `gh` (14 cases), 2026-10-26. Not switched on anywhere. |
 | PR body over 15 lines (GitHub tools and `gh pr create/edit`): **denies** | Enforced for those tools. Footer lines not counted | In all 14 repos. Refused in a live cloud session, 2026-10-25 |
 | Review comment (`Reviewer:`) missing a line or over 5 lines after the block: **denies** | Enforced for those tools | In all 14 repos. Refused in a live cloud session, 2026-10-25 |
 | After opening a PR: **reminds** to subscribe and schedule a check-in | Reminder, not a block | Self-tested. That Claude shows the reminder is untested |
 | Bad input, a crash or a wrong script path | **Fails open**: no guard, no error | Known gap. Run the self-test after setup. |
-| Repos without the `.claude/` files | No guard | All 13 repos have them on their working branch. Also on `main`: kuploy, kuploy-hub, growthops, epay-gateway, kuploy-cloud. Other `main` branches: not checked. |
+| A computer or cloud environment not set up | No guard | Set up once each: [how-it-works.md](how-it-works.md#setting-up). A session that starts without the playbook copy is told so. |
+| A session edits or deletes its own playbook copy | Guard changed or gone | Known gap. The next pull doesn't undo a local edit. |
 
 ## Checks, GitHub, tooling
 | What | Level | Status |

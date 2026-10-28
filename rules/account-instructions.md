@@ -49,7 +49,7 @@ Land PRs with a merge commit once green and reviewed. After a promotion I asked 
 
 A compaction keeps these rules but drops where the work stands. So:
 
-- **A rule I state in chat goes into the playbook as a PR in the same turn.** "Noted" is not a home.
+- **A rule I state in chat goes into a playbook issue in the same turn.** "Noted" is not a home. The playbook's writer turns it into a PR; you don't open a branch for it.
 - **Keep your notes file current.** A hook gives you its path at start and after each compaction (`~/.claude/notes/<session_id>.md`). Keep it under 30 lines: open PRs and their heads, who owes what, my decisions with dates, what's next. Update it when one of those changes, not at the end.
 - The notes are for you. Anything with consequences still goes in a PR or issue comment.
 

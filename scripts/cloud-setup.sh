@@ -8,6 +8,7 @@
 # clones the public playbook and points user settings at it. Each session start pulls the clone,
 # so a hook change needs no re-paste. No clone: the hooks do nothing.
 #
+# It overwrites ~/.claude/settings.json; a fresh cloud container has none.
 # Keep the matchers in step with claude/settings.json. Changing this file means pasting again.
 set -u
 PB="$HOME/.claude/playbook"
@@ -21,15 +22,15 @@ cat > "$HOME/.claude/settings.json" <<EOF
     "SessionStart": [
       { "hooks": [{ "type": "command", "command": "git -C $PB pull -q --ff-only >/dev/null 2>&1; exit 0" }] },
       { "matcher": "startup|resume|compact",
-        "hooks": [{ "type": "command", "command": "F=$PB/claude/hooks/notes.py; [ -f \$F ] && exec python3 \$F; exit 0" }] }
+        "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/notes.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; echo 'No playbook checks in this session: the playbook copy is missing.'; exit 0" }] }
     ],
     "PreToolUse": [
       { "matcher": "Bash|mcp__github__create_branch|mcp__github__merge_pull_request|mcp__github__create_pull_request|mcp__github__update_pull_request|mcp__github__add_issue_comment|mcp__github__pull_request_review_write",
-        "hooks": [{ "type": "command", "command": "F=$PB/claude/hooks/guard.py; [ -f \$F ] && exec python3 \$F; exit 0" }] }
+        "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/guard.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
     ],
     "PostToolUse": [
       { "matcher": "Bash|mcp__github__create_pull_request",
-        "hooks": [{ "type": "command", "command": "F=$PB/claude/hooks/guard.py; [ -f \$F ] && exec python3 \$F; exit 0" }] }
+        "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/guard.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
     ]
   }
 }

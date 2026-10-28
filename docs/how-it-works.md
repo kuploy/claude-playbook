@@ -81,7 +81,7 @@ Only sessions started afterwards get the checks. Paste again only if `cloud-setu
 
 ### Old copies in repos
 
-Before #42, each repo got its own copy of the checks, in its `.claude/` folder. Those copies no longer update, and they run next to the real ones. They are being removed, one PR per repo. If you find one, delete `.claude/hooks/` and the `hooks` part of `.claude/settings.json`.
+Before #42, each repo got its own copy of the checks, in its `.claude/` folder. Those copies no longer update, and they run next to the real ones. Delete them: `.claude/hooks/`, and the `hooks` part of `.claude/settings.json`.
 
 ### The notes reminder
 
@@ -105,6 +105,7 @@ It runs from your copy of the playbook, so every repo gets it with nothing to co
 
 **Gaps:**
 - Only runs on a computer or cloud environment that has been set up, and only in sessions started after that.
+- A session can edit or delete its own copy of the playbook, and so switch its checks off.
 - Matches command text. `git update-ref` or a script that runs git gets past it.
 - `git push -u` of a branch already on the remote is not gated. A first push outside a frozen epic asks again, even if you approved its `checkout -b`.
 - A branch must read `<prefix>/<n>-<word>`. `feat/2026-10-25-x` or `7-3` is denied as having no issue number.
