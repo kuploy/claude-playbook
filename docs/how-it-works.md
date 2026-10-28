@@ -24,7 +24,7 @@
 
 - **New repo:** add its name to `.github/sync.yml`.
 - **A repo wants its own version of a file:** merge once, then remove that repo from the list for that file.
-- **Sync PRs need one check, not two reviews:** the file's blob hash matches the playbook (`git hash-object sync/<file>`). Post it once as a comment. Any difference, and the 2-review rule applies. (Owner decision, 2026-10-20.)
+- **Sync PRs need one check, not two reviews:** the file's blob hash matches the playbook (`git hash-object sync/<file>`). Post it once as a comment. The guard runs the same check before a merge and lets a matching PR through. Any difference, and the 2-review rule applies. (Owner decision, 2026-10-20.)
 - **If the Action is turned on again:** it needs a `SYNC_TOKEN` secret (classic PAT, `repo` scope; you have three owners).
 
 ## The two-reviews check
