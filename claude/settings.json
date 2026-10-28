@@ -11,6 +11,37 @@
             "command": "git -C ~/Devl/Projects/claude-playbook pull -q --ff-only >/dev/null 2>&1 || true"
           }
         ]
+      },
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=$HOME/Devl/Projects/claude-playbook/claude/hooks/notes.py; [ -f $F ] && exec python3 $F; exit 0"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|mcp__github__create_branch|mcp__github__merge_pull_request|mcp__github__create_pull_request|mcp__github__update_pull_request|mcp__github__add_issue_comment|mcp__github__pull_request_review_write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=$HOME/Devl/Projects/claude-playbook/claude/hooks/guard.py; [ -f $F ] && exec python3 $F; exit 0"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|mcp__github__create_pull_request",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=$HOME/Devl/Projects/claude-playbook/claude/hooks/guard.py; [ -f $F ] && exec python3 $F; exit 0"
+          }
+        ]
       }
     ]
   }

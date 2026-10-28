@@ -2,7 +2,7 @@
 
 **Enforced** = the system refuses or asks. **Best effort** = catches the usual cases, can be sidestepped. **Convention** = a template makes the right thing easy. **Willpower** = only the prompt says so.
 
-## Guard hook (`.claude/hooks/guard.py`, in all 13 repos on their working branch)
+## Guard hook (`claude/hooks/guard.py`, run from the playbook clone in every repo, #42)
 | What | Level | Status |
 |---|---|---|
 | New branch, scope gate (#13): **denies** no issue number or another open PR in the repo, **allows** a sub-issue of an open `scope:frozen` epic, else **asks** | Best effort (matches command text) | Each row self-tested with real and fake `gh`, 2026-10-25. Not yet copied to the other repos. Bypass and Auto modes untested. |
@@ -38,7 +38,7 @@
 | Cloud session messaging a desktop peer | Allowed for the playbook session only (Ed approved on a trusted device, 2026-10-25). Other cloud sessions still can't | Tested: delivered |
 | Reviewer discovery bullet (`Review requested from:`, `list_sessions`) | Willpower | In the rules file and pasted into account settings (2026-10-24). PR template line not added. |
 | `autoCompactWindow` 250000 on **desktop** | Enforced | From `~/.claude/settings.json` |
-| `autoCompactWindow` on **cloud** | Enforced when read | Cloud has no user settings, so it used the default (about 784k). **A repo `.claude/settings.json` works** (tested: threshold 184k, source "settings"). Merged in all 13 repos; not re-tested on one of them. |
+| `autoCompactWindow` on **cloud** | Enforced when read | From `~/.claude/settings.json`, written by the Setup script (#42). Without it, the default (about 784k). |
 | Default model and effort | Convention | Desktop only. Cloud sessions are set when started. |
 | `chore` Haiku agent | Convention | Main session decides to delegate. Untested. |
 | Spawn cap (3 live per spawner), spawner archives on task end, push before leaving, one-line messages, thread owner reports, restart peers after a rule change | Willpower | About ten old idle sessions exist |
@@ -62,7 +62,7 @@ Which evidence the guard wants before a merge (#34).
 | `local` | The guard counts the reviews itself, the way `sync/two-reviews.yml` does: the latest block per `Reviewer:` name, from someone with write access, posted after GitHub received the head (earliest check suite, else the committer date), verdict starting `approve`, `Ran:` and `Would catch:` filled. Under two: **deny**. With no check suites readable it counts from the commit date and says so. It **ignores** the `two-reviews` status, even a red one: use `both` for that. Needs neither Actions nor the console. |
 | `both` | Both of the above. A missing status is a **deny**, not an ask. |
 | Any other value | **Ask**. Case and spaces are ignored, so ` Local ` is `local`; a typo like `locl` does not silently mean `status`. |
-| Where to set it | Cloud: the environment's variables (untested). Desktop: `"env": {"CLAUDE_REVIEW_GATE": "local"}` in `.claude/settings.local.json` (that checkout only). Not in the repo's `.claude/settings.json`: the sync owns that file. Takes effect at session start. |
+| Where to set it | Cloud: the environment's variables (untested). Desktop: `"env": {"CLAUDE_REVIEW_GATE": "local"}` in `.claude/settings.local.json` (that checkout only). Not in a repo's `.claude/settings.json`: that file is shared through git. Takes effect at session start. |
 | Limit | It only guards sessions that run the hook. The status, when something posts it and a ruleset requires it, binds everyone. |
 
 ## `CLAUDE_RELEASE_OWNER=1`

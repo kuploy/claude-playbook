@@ -22,9 +22,3 @@ group:
       dest: .github/pull_request_template.md
     - source: sync/two-reviews.yml
       dest: .github/workflows/two-reviews.yml
-    - source: sync/claude-settings.json
-      dest: .claude/settings.json
-    - source: claude/hooks/guard.py
-      dest: .claude/hooks/guard.py
-    - source: claude/hooks/notes.py
-      dest: .claude/hooks/notes.py

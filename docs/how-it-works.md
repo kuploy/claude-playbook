@@ -13,10 +13,8 @@
 | `sync/pull_request_template.md` | `.github/pull_request_template.md` in each repo | GitHub, when a PR opens | sync Action |
 | `sync/two-reviews.yml` | `.github/workflows/two-reviews.yml` in each repo | GitHub Actions | sync Action |
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
-| `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once |
-| `sync/claude-settings.json` | `.claude/settings.json` in each repo | Claude Code (desktop and cloud), at session start | sync Action |
-| `claude/hooks/guard.py` | `.claude/hooks/guard.py` in each repo | Claude Code, before tool calls | sync Action |
-| `claude/hooks/notes.py` | `.claude/hooks/notes.py` in each repo | Claude Code, at start and after a compaction | sync Action |
+| `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once (again after #42: it now carries the hooks) |
+| `claude/hooks/guard.py`, `notes.py` | nowhere: run from the playbook clone, wired by `claude/settings.json` (desktop) and `scripts/cloud-setup.sh` (cloud) | Claude Code, before tool calls / at start and after a compaction | not copied; each session start pulls the clone |
 | `scripts/cloud-setup.sh` | the cloud environment's Setup script | the container, when it is built | you, once per environment |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
@@ -93,10 +91,10 @@ The notes hook: at start and after each compaction it prints the path of `~/.cla
 | Review format | **Denies** a `Reviewer:` comment missing a line or with more than 5 lines after the block |
 | Check-in after hand-off | After a PR opens, **reminds** the session to subscribe and schedule a check-in |
 
-It lives in each repo as `.claude/settings.json` and `.claude/hooks/guard.py` (copied by the sync), so desktop and cloud read the same files. A new repo needs a line in `.github/sync.yml`.
+It runs from the playbook clone, through user settings: `claude/settings.json` on desktop, `scripts/cloud-setup.sh` in cloud. Every repo gets it, with nothing to copy (#42). Repos synced before #42 still hold a frozen `.claude/` copy, which runs next to it until removed.
 
 **Gaps:**
-- Only runs in a repo that has the files, and only in sessions started after they landed.
+- Only runs where the clone exists: a desktop machine set up per above, or a cloud environment with the Setup script. Sessions started after that only.
 - Matches command text. `git update-ref` or a script that runs git gets past it.
 - `git push -u` of a branch already on the remote is not gated. A first push outside a frozen epic asks again, even if you approved its `checkout -b`.
 - A branch must read `<prefix>/<n>-<word>`. `feat/2026-10-25-x` or `7-3` is denied as having no issue number.

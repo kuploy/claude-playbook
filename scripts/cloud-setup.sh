@@ -8,7 +8,7 @@
 # clones the public playbook and points user settings at it. Each session start pulls the clone,
 # so a hook change needs no re-paste. No clone: the hooks do nothing.
 #
-# Keep the matchers in step with sync/claude-settings.json. Changing this file means pasting again.
+# Keep the matchers in step with claude/settings.json. Changing this file means pasting again.
 set -u
 PB="$HOME/.claude/playbook"
 mkdir -p "$HOME/.claude"
