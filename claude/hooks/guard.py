@@ -286,25 +286,27 @@ def count_approvals(owner, repo, number, sha):
 
 
 def blob(full, path, ref):
-    return gh("api", f"repos/{full}/contents/{path}?ref={ref}", "--jq", ".sha")
+    # Type with the sha: a symlink whose target text equals the file has the same blob sha.
+    return gh("api", f"repos/{full}/contents/{path}?ref={ref}", "--jq", '.type + " " + .sha')
 
 
 def sync_copy(owner, repo, number, sha):
-    """True when every file the PR changes is a sync.yml dest whose blob at the head equals its source on
-    playbook main (#40). Any other file, a deletion, a mismatch or an unreadable reply: False, and the review rules apply."""
-    if repo == EPIC_HOME.split("/")[1]:
+    """True when every file the PR adds or modifies is a sync.yml dest, a plain file whose blob at the head equals its
+    source on playbook main (#40). Any other file, a rename, a deletion, a mode change, a mismatch or an unreadable reply:
+    False, and the review rules apply."""
+    if repo.lower() == EPIC_HOME.split("/")[1]:
         return False
     conf = gh("api", f"repos/{EPIC_HOME}/contents/.github/sync.yml?ref=main", "-H", "Accept: application/vnd.github.raw")
     pairs = dict((d, s) for s, d in re.findall(r"-\s*source:\s*(\S+)\s*\n\s*dest:\s*(\S+)", conf or ""))
-    files = gh("api", "--paginate", f"repos/{owner}/{repo}/pulls/{number}/files", "--jq", '.[] | "\\(.filename) \\(.status)"')
+    files = gh("api", "--paginate", f"repos/{owner}/{repo}/pulls/{number}/files", "--jq", ".[] | [.filename, .status] | @json")
     if not pairs or not files:
         return False
-    for line in files.splitlines():
-        name, status = line.split(" ")
-        if name not in pairs or status == "removed":
+    # Split on "\n" only, as in count_approvals: a filename can hold U+2028.
+    for name, status in (json.loads(l) for l in files.split("\n") if l.strip()):
+        if name not in pairs or status not in ("added", "modified"):
             return False
         head = blob(f"{owner}/{repo}", name, sha)
-        if not head or head != blob(EPIC_HOME, pairs[name], "main"):
+        if not head or not head.startswith("file ") or head != blob(EPIC_HOME, pairs[name], "main"):
             return False
     return True
 
