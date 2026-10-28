@@ -16,6 +16,8 @@
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once |
 | `sync/claude-settings.json` | `.claude/settings.json` in each repo | Claude Code (desktop and cloud), at session start | sync Action |
 | `claude/hooks/guard.py` | `.claude/hooks/guard.py` in each repo | Claude Code, before tool calls | sync Action |
+| `claude/hooks/notes.py` | `.claude/hooks/notes.py` in each repo | Claude Code, at start and after a compaction | sync Action |
+| `scripts/cloud-setup.sh` | the cloud environment's Setup script | the container, when it is built | you, on each change |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
 ## The sync Action (disabled)
@@ -67,7 +69,15 @@ git clone git@github.com:kuploy/claude-playbook.git ~/Devl/Projects/claude-playb
 ln -s ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents
 ```
 
-Then merge `claude/settings.json` into `~/.claude/settings.json`. Its `SessionStart` hook pulls the clone at each session start, so you no longer pull by hand. Check in a **new** desktop session: it should know the "Sessions and quota" section (passed 2026-10-24).
+Then merge `claude/settings.json` into `~/.claude/settings.json`.
+
+## Per cloud environment, once
+
+A cloud session with several repos starts in `/home/user`. No repo's `.claude/settings.json` loads there, so the guard and the notes hook don't run (#42). The sign: the session's compaction threshold reads "model-default", not "settings".
+
+Fix: paste `scripts/cloud-setup.sh` into the environment's settings, under Setup script. It writes `/home/user/.claude/settings.json` and a launcher that runs the hooks from the playbook clone, wherever it sits under `/home/user`. A session without the playbook as a source runs no hooks. New sessions only. Check with the canary test below. When `sync/claude-settings.json` changes, change the script too and paste it again.
+
+The notes hook: at start and after each compaction it prints the path of `~/.claude/notes/<session_id>.md` and what it holds. Why the file and what goes in it: `rules/account-instructions.md`, "Notes file". Its `SessionStart` hook pulls the clone at each session start, so you no longer pull by hand. Check in a **new** desktop session: it should know the "Sessions and quota" section (passed 2026-10-24).
 
 ## The guard hook
 

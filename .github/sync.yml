@@ -26,3 +26,5 @@ group:
       dest: .claude/settings.json
     - source: claude/hooks/guard.py
       dest: .claude/hooks/guard.py
+    - source: claude/hooks/notes.py
+      dest: .claude/hooks/notes.py
