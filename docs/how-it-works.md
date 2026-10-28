@@ -14,7 +14,7 @@
 | `sync/two-reviews.yml` | `.github/workflows/two-reviews.yml` in each repo | GitHub Actions | sync Action |
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once (again after #42: it now carries the hooks) |
-| `claude/hooks/guard.py`, `notes.py` | nowhere: run from the playbook clone, wired by `claude/settings.json` (desktop) and `scripts/cloud-setup.sh` (cloud) | Claude Code, before tool calls / at start and after a compaction | not copied; each session start pulls the clone |
+| `claude/hooks/guard.py`, `notes.py` | nowhere: they run from your copy of the playbook (see [Setting up](#setting-up)) | Claude Code, before tool calls / at start and after a compaction | not copied; each new session updates your copy |
 | `scripts/cloud-setup.sh` | the cloud environment's Setup script | the container, when it is built | you, once per environment |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
@@ -52,30 +52,40 @@ Would catch: <what that would have caught>
 
 **Limits:** it trusts the `Reviewer:` name and does not check that `Ran:` is true. Not yet run on a real PR. Not live (Actions billing limit).
 
-## Per machine, once
+## Setting up
 
-Desktop sessions don't get the account-settings prompt. Give them the rules with `~/.claude/CLAUDE.md`:
+The checks (the guard and the notes reminder) run from a copy of this repo. You set that copy up once per computer and once per cloud environment. After that, every session gets the checks, in every repo. Each new session updates the copy first, so a change to the checks reaches everyone without you doing anything.
 
-```
-# Working instructions
-Cloud sessions get these from my Claude account settings. Desktop sessions get them from the playbook file below.
-@~/Devl/Projects/claude-playbook/rules/account-instructions.md
-```
+### On your computer, once
 
-```sh
-git clone git@github.com:kuploy/claude-playbook.git ~/Devl/Projects/claude-playbook
-ln -s ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents
-```
+1. Get the playbook:
+   ```sh
+   git clone git@github.com:kuploy/claude-playbook.git ~/Devl/Projects/claude-playbook
+   ln -s ~/Devl/Projects/claude-playbook/claude/agents ~/.claude/agents
+   ```
+2. Give desktop sessions the rules. Put this in `~/.claude/CLAUDE.md`:
+   ```
+   # Working instructions
+   Cloud sessions get these from my Claude account settings. Desktop sessions get them from the playbook file below.
+   @~/Devl/Projects/claude-playbook/rules/account-instructions.md
+   ```
+3. Turn on the checks. Copy `claude/settings.json` into `~/.claude/settings.json`. If you already have settings there, add its `hooks` part next to yours rather than replacing the file.
+4. Open a new session and run the canary test (below).
 
-Then merge `claude/settings.json` into `~/.claude/settings.json`.
+### In the cloud, once per environment
 
-## Per cloud environment, once
+1. In the environment's settings, paste the contents of `scripts/cloud-setup.sh` under **Setup script**.
+2. Open a new session and run the canary test (below).
 
-A cloud session with several repos starts in `/home/user`. No repo's `.claude/settings.json` loads there, so the guard and the notes hook don't run (#42). The sign: the session's compaction threshold reads "model-default", not "settings".
+Only sessions started afterwards get the checks. Paste again only if `cloud-setup.sh` itself changes.
 
-Fix: paste `scripts/cloud-setup.sh` into the environment's settings, under Setup script. It clones the public playbook to `~/.claude/playbook` and writes `~/.claude/settings.json` (user settings, which every cloud session reads) pointing at it. Each session start pulls the clone, so a hook change needs no re-paste. A clone that fails leaves the hooks doing nothing. New sessions only. Check with the canary test below. Paste again only when the script itself changes. Until the per-repo copies are dropped, a session in a synced repo runs the guard twice: harmless.
+### Old copies in repos
 
-The notes hook: at start and after each compaction it prints the path of `~/.claude/notes/<session_id>.md` and what it holds. Why the file and what goes in it: `rules/account-instructions.md`, "Notes file". Its `SessionStart` hook pulls the clone at each session start, so you no longer pull by hand. Check in a **new** desktop session: it should know the "Sessions and quota" section (passed 2026-10-24).
+Before #42, each repo got its own copy of the checks, in its `.claude/` folder. Those copies no longer update, and they run next to the real ones. They are being removed, one PR per repo. If you find one, delete `.claude/hooks/` and the `hooks` part of `.claude/settings.json`.
+
+### The notes reminder
+
+When a session starts, and again after it compacts (summarises its own history to make room), it is told where its notes file is and shown what's in it. Why a session keeps notes: `rules/account-instructions.md`, "Notes file".
 
 ## The guard hook
 
@@ -91,10 +101,10 @@ The notes hook: at start and after each compaction it prints the path of `~/.cla
 | Review format | **Denies** a `Reviewer:` comment missing a line or with more than 5 lines after the block |
 | Check-in after hand-off | After a PR opens, **reminds** the session to subscribe and schedule a check-in |
 
-It runs from the playbook clone, through user settings: `claude/settings.json` on desktop, `scripts/cloud-setup.sh` in cloud. Every repo gets it, with nothing to copy (#42). Repos synced before #42 still hold a frozen `.claude/` copy, which runs next to it until removed.
+It runs from your copy of the playbook, so every repo gets it with nothing to copy (#42). See [Setting up](#setting-up).
 
 **Gaps:**
-- Only runs where the clone exists: a desktop machine set up per above, or a cloud environment with the Setup script. Sessions started after that only.
+- Only runs on a computer or cloud environment that has been set up, and only in sessions started after that.
 - Matches command text. `git update-ref` or a script that runs git gets past it.
 - `git push -u` of a branch already on the remote is not gated. A first push outside a frozen epic asks again, even if you approved its `checkout -b`.
 - A branch must read `<prefix>/<n>-<word>`. `feat/2026-10-25-x` or `7-3` is denied as having no issue number.
@@ -110,9 +120,9 @@ It runs from the playbook clone, through user settings: `claude/settings.json` o
 - A wrong script path blocks nothing. Run the self-test after setup.
 - Results by session type: [enforcement.md](enforcement.md).
 
-**Self-test** (should print `"deny"`: no issue number), from a repo that has the files:
+**Self-test** (should print `"deny"`: no issue number), from inside any repo. In the cloud the copy is `~/.claude/playbook`:
 ```sh
-echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | python3 .claude/hooks/guard.py
+echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | python3 ~/Devl/Projects/claude-playbook/claude/hooks/guard.py
 ```
 In a repo with a `Pattern:` line, `git checkout -b feat/9-x` (no role) should also print `"deny"`.
 
