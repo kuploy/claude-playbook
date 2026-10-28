@@ -17,7 +17,7 @@
 | `sync/claude-settings.json` | `.claude/settings.json` in each repo | Claude Code (desktop and cloud), at session start | sync Action |
 | `claude/hooks/guard.py` | `.claude/hooks/guard.py` in each repo | Claude Code, before tool calls | sync Action |
 | `claude/hooks/notes.py` | `.claude/hooks/notes.py` in each repo | Claude Code, at start and after a compaction | sync Action |
-| `scripts/cloud-setup.sh` | the cloud environment's Setup script | the container, when it is built | you, on each change |
+| `scripts/cloud-setup.sh` | the cloud environment's Setup script | the container, when it is built | you, once per environment |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
 ## The sync Action (disabled)
@@ -75,7 +75,7 @@ Then merge `claude/settings.json` into `~/.claude/settings.json`.
 
 A cloud session with several repos starts in `/home/user`. No repo's `.claude/settings.json` loads there, so the guard and the notes hook don't run (#42). The sign: the session's compaction threshold reads "model-default", not "settings".
 
-Fix: paste `scripts/cloud-setup.sh` into the environment's settings, under Setup script. It writes `/home/user/.claude/settings.json` and a launcher that runs the hooks from the playbook clone, wherever it sits under `/home/user`. A session without the playbook as a source runs no hooks. New sessions only. Check with the canary test below. When `sync/claude-settings.json` changes, change the script too and paste it again.
+Fix: paste `scripts/cloud-setup.sh` into the environment's settings, under Setup script. It clones the public playbook to `~/.claude/playbook` and writes `~/.claude/settings.json` (user settings, which every cloud session reads) pointing at it. Each session start pulls the clone, so a hook change needs no re-paste. A clone that fails leaves the hooks doing nothing. New sessions only. Check with the canary test below. Paste again only when the script itself changes. Until the per-repo copies are dropped, a session in a synced repo runs the guard twice: harmless.
 
 The notes hook: at start and after each compaction it prints the path of `~/.claude/notes/<session_id>.md` and what it holds. Why the file and what goes in it: `rules/account-instructions.md`, "Notes file". Its `SessionStart` hook pulls the clone at each session start, so you no longer pull by hand. Check in a **new** desktop session: it should know the "Sessions and quota" section (passed 2026-10-24).
 
