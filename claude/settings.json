@@ -83,6 +83,16 @@
         ]
       }
     ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=\"$HOME/Devl/Projects/claude-playbook/claude/hooks/signal.py\"; [ -f \"$F\" ] && exec python3 \"$F\"; exit 0"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

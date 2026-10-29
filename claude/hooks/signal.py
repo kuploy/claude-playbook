@@ -7,25 +7,30 @@ decision a session needs from its owner is not a prompt; the session writes that
 Events, wired in claude/settings.json and scripts/cloud-setup.sh:
 - PermissionRequest (before the prompt shows) -> {"state": "waiting", "kind": "permission", ...}
 - Notification, idle_prompt                    -> {"state": "waiting", "kind": "input", ...}
-- UserPromptSubmit, PostToolUse                -> {"state": "cleared"}, only after a "waiting" was sent
+- UserPromptSubmit, PostToolUse, SessionEnd    -> {"state": "cleared"}, only after a "waiting" was sent
   (a marker file under ~/.claude/attention/), so an ordinary tool call costs a file check, no request.
+  The marker goes only once the console took the clear; a failed clear is retried, at most once a minute.
 
 Contract with the console (kuploy/claude-agent-console#70): POST $CONSOLE_URL/api/ingest/attention,
 `Authorization: Bearer $INGEST_SECRET`, body {"sessionId", "localSessionId", "state", "kind",
 "message", "cwd", "at"}. sessionId is the cloud session's id (session_...) when there is one, else
 null. The message names the tool and its description only, never the command, which can hold a secret.
 
-No INGEST_SECRET: does nothing. Never blocks and never decides: a 2-second timeout, any error exits 0.
+No INGEST_SECRET: does nothing. Never decides, and returns at once: the request is sent from a
+detached child with a 2-second timeout, so a slow console never holds a prompt. Any error exits 0.
 """
 import datetime
 import json
 import os
 import sys
+import time
 import urllib.request
 
 URL = os.environ.get("CONSOLE_URL", "https://claude-agent-console.vercel.app").rstrip("/") + "/api/ingest/attention"
 TIMEOUT = 2
 MARKS = os.path.expanduser("~/.claude/attention")
+RETRY = 60   # seconds between tries of a clear the console didn't take
+FAILED = "clear failed"
 
 
 def cloud_id():
@@ -53,6 +58,17 @@ def post(body, secret):
     urllib.request.urlopen(req, timeout=TIMEOUT).close()
 
 
+def detach():
+    """True in a child that runs on after the hook returns; False in the hook itself, which exits."""
+    if os.fork():
+        return False
+    os.setsid()
+    null = os.open(os.devnull, os.O_RDWR)
+    for fd in (0, 1, 2):
+        os.dup2(null, fd)
+    return True
+
+
 def main():
     secret = os.environ.get("INGEST_SECRET")
     if not secret:
@@ -61,10 +77,13 @@ def main():
     local = str(data.get("session_id") or "")
     mark = os.path.join(MARKS, local or "unknown")
     found = waiting(data)
-    if found is None and data.get("hook_event_name") in ("UserPromptSubmit", "PostToolUse"):
+    if found is None and data.get("hook_event_name") in ("UserPromptSubmit", "PostToolUse", "SessionEnd"):
         if not os.path.exists(mark):
             return
-        os.remove(mark)   # first: a console that is down must not make every later tool call retry
+        with open(mark) as f:
+            failed = f.read() == FAILED
+        if failed and time.time() - os.path.getmtime(mark) < RETRY:
+            return   # a console that is down must not cost every tool call a request
         state, kind, message = "cleared", None, None
     elif found:
         state, (kind, message) = "waiting", found
@@ -72,8 +91,19 @@ def main():
         open(mark, "w").close()
     else:
         return
-    post({"sessionId": cloud_id(), "localSessionId": local or None, "state": state, "kind": kind, "message": message,
-          "cwd": data.get("cwd"), "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}, secret)
+    if not detach():
+        return
+    body = {"sessionId": cloud_id(), "localSessionId": local or None, "state": state, "kind": kind, "message": message,
+            "cwd": data.get("cwd"), "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    try:
+        post(body, secret)
+    except Exception:
+        if state == "cleared":
+            with open(mark, "w") as f:
+                f.write(FAILED)   # kept, and its time restarts the minute
+        return
+    if state == "cleared":
+        os.remove(mark)
 
 
 if __name__ == "__main__":
@@ -81,4 +111,4 @@ if __name__ == "__main__":
         main()
     except Exception:
         pass
-    sys.exit(0)
+    os._exit(0)   # the child too: no cleanup of the parent's state

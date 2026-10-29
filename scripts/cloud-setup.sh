@@ -50,6 +50,9 @@ cat > "$HOME/.claude/settings.json" <<EOF
     "UserPromptSubmit": [
       { "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/signal.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
     ],
+    "SessionEnd": [
+      { "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/signal.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
+    ],
     "Stop": [
       { "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/plain.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
     ]
