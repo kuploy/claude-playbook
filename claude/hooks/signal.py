@@ -9,7 +9,8 @@ Events, wired in claude/settings.json and scripts/cloud-setup.sh:
 - Notification, idle_prompt                    -> {"state": "waiting", "kind": "input", ...}
 - UserPromptSubmit, PostToolUse, SessionEnd    -> {"state": "cleared"}, only after a "waiting" was sent
   (a marker file under ~/.claude/attention/), so an ordinary tool call costs a file check, no request.
-  The marker goes only once the console took the clear; a failed clear is retried, at most once a minute.
+  The marker goes only once the console took the clear; a failed clear is retried, at most once a minute,
+  except at SessionEnd, the last chance.
 
 Contract with the console (kuploy/claude-agent-console#70): POST $CONSOLE_URL/api/ingest/attention,
 `Authorization: Bearer $INGEST_SECRET`, body {"sessionId", "localSessionId", "state", "kind",
@@ -82,7 +83,8 @@ def main():
             return
         with open(mark) as f:
             failed = f.read() == FAILED
-        if failed and time.time() - os.path.getmtime(mark) < RETRY:
+        last = data.get("hook_event_name") == "SessionEnd"   # no later event will retry it
+        if failed and not last and time.time() - os.path.getmtime(mark) < RETRY:
             return   # a console that is down must not cost every tool call a request
         state, kind, message = "cleared", None, None
     elif found:
