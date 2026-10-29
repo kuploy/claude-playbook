@@ -71,6 +71,7 @@ jobs:
                 const r = await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username: login });
                 return ['admin', 'write'].includes(r.data.permission);
               } catch (e) {
+                core.info(`two-reviews: no permission for ${login} (${e.message}); not counted`);
                 return false;
               }
             };

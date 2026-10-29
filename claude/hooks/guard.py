@@ -307,11 +307,13 @@ def count_approvals(owner, repo, number, sha):
     items = sorted((it for it in (json.loads(l) for l in (comments + "\n" + reviews).split("\n") if l.strip())
                     if it.get("at")), key=lambda it: when(it["at"]))
     # Write access is asked of GitHub per author (#55): author_association can't see a private org
-    # membership, so an org member shows up as CONTRIBUTOR. A failed lookup counts as no access.
+    # membership, so an org member shows up as CONTRIBUTOR. A failed lookup is unreadable GitHub: ask.
     writers = {}
     for login in {it.get("login") for it in items if it.get("login") and field(it["body"], "Reviewer")}:
         perm = gh("api", f"{full}/collaborators/{login}/permission", "--jq", ".permission")
-        writers[login] = (perm or "").strip() in ("admin", "write")
+        if perm is None:
+            return None, ""
+        writers[login] = perm.strip() in ("admin", "write")
     latest = {}   # latest verdict per reviewer name, from people with write access, after the push
     for it in items:
         if not writers.get(it.get("login")) or when(it["at"]) <= since:
