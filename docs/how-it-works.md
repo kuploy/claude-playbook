@@ -152,6 +152,8 @@ Cloud sessions use the settings you pasted. When you change `config.json`, pick 
 
   If the token stops working (it expired or was deleted), sessions go on with the last pasted settings, and say so when they start. Make a new token and replace the variable.
 
+With a token, the pasted script still holds your full settings, on purpose. It is the backup: if the token stops working, your blocks and checks stay on, and the session tells you. While the token works, an old pasted copy does no harm, because each session replaces it with the latest.
+
 Either way, paste again when `cloud-setup.sh` itself changes.
 
 ### Old copies in repos
