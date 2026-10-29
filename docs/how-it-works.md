@@ -14,7 +14,7 @@
 | `sync/two-reviews.yml` | `.github/workflows/two-reviews.yml` in each repo | GitHub Actions | sync Action |
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once (again after #42: it now carries the hooks) |
-| `claude/hooks/guard.py`, `notes.py`, `plain.py` | nowhere: they run from your copy of the playbook (see [Setting up](#setting-up)) | Claude Code, before tool calls / at start and after a compaction / when a turn ends | not copied; each new session updates your copy |
+| `claude/hooks/guard.py`, `notes.py`, `plain.py`, `signal.py` | nowhere: they run from your copy of the playbook (see [Setting up](#setting-up)) | Claude Code, before tool calls / at start and after a compaction / when a turn ends / when a session waits on you | not copied; each new session updates your copy |
 | `scripts/cloud-setup.sh` | the cloud environment's Setup script, with your config pasted in | the container, when it is built | you, once per environment |
 | your `config.json` (not in this repo: see [Your config](#your-config)) | `~/.claude/playbook-config.json` | the guard, the notes reminder and the reply check | you, once per computer (a link) and once per environment (in the Setup script) |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
@@ -167,6 +167,14 @@ Before you merge a deletion, run the check in step 3 on every computer that work
 When a session starts, and again after it compacts (summarises its own history to make room), it is told where its notes file is and shown what's in it. Why a session keeps notes: `rules/account-instructions.md`, "Notes file".
 
 The hook only **shows** the file. Writing it is the session's job, and nothing checks that it happens. The hook runs at start, on resume and after a compaction. A session that stops writing the file comes back from a compaction with old notes and only the summary to go on (#56: the lead's notes were 9 hours old). A session whose computer or environment was set up before #42 has no hook at all, so it is never shown the file. To check a session, open `~/.claude/notes/<session_id>.md` on its machine and look at the time it was last changed.
+
+### Telling the console a session waits on you
+
+When a session is about to ask your permission, or sits waiting for your input, `signal.py` tells the agent console straight away. When the session moves again, it tells the console that too. The console shows it and pushes it to your phone (kuploy/claude-agent-console#70).
+
+A permission prompt is temporary, so it goes to the console only, never to a pull request. A question that needs your decision is different: the session isn't stuck, so it writes that in the pull request or issue itself.
+
+It needs `INGEST_SECRET` in the session's environment. How to set it, and why it must match the console's: the console's `docs/setup.md`. Without it the hook does nothing. It never blocks a session: if the console is down, the session carries on.
 
 ## The guard hook
 

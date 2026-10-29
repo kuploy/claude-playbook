@@ -38,7 +38,17 @@ cat > "$HOME/.claude/settings.json" <<EOF
     ],
     "PostToolUse": [
       { "matcher": "Bash|mcp__github__create_pull_request",
-        "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/guard.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
+        "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/guard.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] },
+      { "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/signal.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/signal.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
+    ],
+    "Notification": [
+      { "matcher": "idle_prompt", "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/signal.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/signal.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
     ],
     "Stop": [
       { "hooks": [{ "type": "command", "command": "F=\"$PB/claude/hooks/plain.py\"; [ -f \"\$F\" ] && exec python3 \"\$F\"; exit 0" }] }
