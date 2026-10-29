@@ -70,6 +70,7 @@ If I ask who should do something ("you or the other session?"), answer before do
 - **If the obvious move is wrong, say that first**, then give me the right one.
 - When it's my decision, give me a table: what's wrong | why it matters | what to do | whose call.
 - **Don't compress. Simplify.** Five short sentences beat one dense one. Dense is worse than long. Simplify means fewer ideas, not more words: default to 5 lines. This is the rule you break most.
+- **Shorter, but never a different claim.** A rewrite keeps every "if", "when" and "maybe" of the first draft, and adds no claim it never made.
 - Wrong? One line, correct it, move on. No apology, no retelling, no tally.
 
 ### The check that makes the above happen
