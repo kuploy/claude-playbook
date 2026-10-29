@@ -74,7 +74,7 @@ The playbook is the same for everyone. What is yours lives in one file, `config.
 ```
 
 - **`repos`**: the repos `scripts/copy-by-hand.sh` copies files into.
-- **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command. With `only_in`, the command counts only when that text is in the folder name or the command.
+- **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command. With `only_in`, the command counts only when that text is in the folder name or the command. Setting the variable for the owner's session: [enforcement.md](enforcement.md#the-owner-only-switch).
 - **`epic_home`**: the repo where your epics live. The new-branch check looks there for an issue the current repo doesn't have.
 
 Every part is optional. With no config file, nothing is refused as owner-only, and the new-branch check only looks in the current repo. Each new session says so when the file is missing, can't be read, lists no owner-only commands, or has a field of the wrong type. A wrong-typed field fails closed: the command stays refused everywhere, with no exemption. If you have no owner-only commands, that one line appears in every session; it is a reminder, not an error.
@@ -96,7 +96,25 @@ The checks (the guard and the notes reminder) run from a copy of this repo. You 
    Cloud sessions get these from my Claude account settings. Desktop sessions get them from the playbook file below.
    @~/Devl/Projects/claude-playbook/rules/account-instructions.md
    ```
-3. Turn on the checks. Copy `claude/settings.json` into `~/.claude/settings.json`. If you already have settings there, add its `hooks` part next to yours rather than replacing the file.
+3. Turn on the checks: add the `hooks` part of `claude/settings.json` to `~/.claude/settings.json`. This keeps a backup and adds only the hooks you are missing; the rest of your file is untouched:
+   ```sh
+   python3 - <<'EOF'
+   import json, os, shutil
+   u = os.path.expanduser("~/.claude/settings.json")
+   p = os.path.expanduser("~/Devl/Projects/claude-playbook/claude/settings.json")
+   if os.path.exists(u): shutil.copy(u, u + ".bak")
+   mine, pb = (json.load(open(u)) if os.path.exists(u) else {}), json.load(open(p))
+   h = mine.setdefault("hooks", {})
+   for ev, entries in pb["hooks"].items():
+       have = h.setdefault(ev, [])
+       have += [e for e in entries if e not in have]
+   json.dump(mine, open(u, "w"), indent=2)
+   EOF
+   ```
+   Check: both lines must show a `guard.py` path. An empty list means no session on this computer is guarded.
+   ```sh
+   python3 -c "import json,os;h=json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('hooks',{});[print(e,[x['command'] for m in h.get(e,[]) for x in m['hooks']]) for e in ('PreToolUse','PostToolUse')]"
+   ```
 4. Give the checks your config. Get your config repo and link its file:
    ```sh
    git clone git@github.com:your-org/claude-playbook-config.git ~/Devl/Projects/claude-playbook-config
@@ -116,6 +134,8 @@ Only sessions started afterwards get the checks. Paste again when `cloud-setup.s
 ### Old copies in repos
 
 Before #42, each repo got its own copy of the checks, in its `.claude/` folder. Those copies no longer update, and they run next to the real ones. Delete them: `.claude/hooks/`, and the `hooks` part of `.claude/settings.json`.
+
+Before you merge a deletion, run the check in step 3 on every computer that works in that repo. If it shows empty lists, the repo copy is the only guard there, and deleting it switches the checks off with no message.
 
 ### The notes reminder
 
