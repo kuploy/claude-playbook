@@ -297,7 +297,7 @@ def count_approvals(owner, repo, number, sha):
     if seen and seen[0] > since:
         since = seen[0]
     note = "" if suites is not None else " (push time unknown: counted from the commit date)"
-    shape = "{body, at: (.created_at // .submitted_at), assoc: .author_association}"
+    shape = "{body, at: (.created_at // .submitted_at), login: .user.login}"
     comments = gh("api", "--paginate", f"{full}/issues/{number}/comments", "--jq", f".[] | {shape} | @json")
     reviews = gh("api", "--paginate", f"{full}/pulls/{number}/reviews", "--jq", f".[] | {shape} | @json")
     if comments is None or reviews is None:
@@ -306,9 +306,15 @@ def count_approvals(owner, repo, number, sha):
     # A pending review has no time yet; skipped here, since a crash would fail open.
     items = sorted((it for it in (json.loads(l) for l in (comments + "\n" + reviews).split("\n") if l.strip())
                     if it.get("at")), key=lambda it: when(it["at"]))
+    # Write access is asked of GitHub per author (#55): author_association can't see a private org
+    # membership, so an org member shows up as CONTRIBUTOR. A failed lookup counts as no access.
+    writers = {}
+    for login in {it.get("login") for it in items if it.get("login") and field(it["body"], "Reviewer")}:
+        perm = gh("api", f"{full}/collaborators/{login}/permission", "--jq", ".permission")
+        writers[login] = (perm or "").strip() in ("admin", "write")
     latest = {}   # latest verdict per reviewer name, from people with write access, after the push
     for it in items:
-        if it["assoc"] not in ("OWNER", "MEMBER", "COLLABORATOR") or when(it["at"]) <= since:
+        if not writers.get(it.get("login")) or when(it["at"]) <= since:
             continue
         who, verdict = field(it["body"], "Reviewer"), field(it["body"], "Verdict")
         if who and verdict:
