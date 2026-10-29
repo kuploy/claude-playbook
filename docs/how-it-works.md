@@ -146,7 +146,7 @@ Cloud sessions use the settings you pasted. When you change `config.json`, pick 
 
 - **Paste again.** Repeat steps 1 and 2. Nothing else to set up.
 - **Or add a token once, and never paste again.** Each new session then reads the latest `config.json` itself.
-  1. On GitHub: **Settings**, **Developer settings**, **Fine-grained tokens**, **Generate new token**. Under repository access, pick only your `claude-playbook-config`. Under permissions, set **Contents** to **Read-only**. Note the expiry date.
+  1. On GitHub: **Settings**, **Developer settings**, **Fine-grained tokens**, **Generate new token**. Set **Resource owner** to the account that owns `claude-playbook-config` (your organization, if it is there). Under **Expiration**, pick **No expiration** if offered, else the longest allowed. Under repository access, pick only `claude-playbook-config`. Under permissions, set **Contents** to **Read-only**. If your organization asks for approval, an owner approves it in the organization's settings, under **Personal access tokens**.
   2. In the cloud environment's settings, add an environment variable: `PLAYBOOK_CONFIG_TOKEN=` followed by the token. Never paste the token into a chat.
   3. Check that your `config.json` has `config_repo` set (see [Your config](#your-config)). Paste the Setup script one last time, so the session knows where to look.
 
