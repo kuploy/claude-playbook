@@ -32,7 +32,8 @@ def refresh_config(path):
     if os.path.islink(path):   # a computer: pull the clone the link points into, quietly, as the playbook pull does
         try:
             subprocess.run(["git", "-C", os.path.dirname(os.path.realpath(path)), "pull", "-q", "--ff-only"],
-                           capture_output=True, timeout=10)
+                           capture_output=True, stdin=subprocess.DEVNULL, timeout=10,
+                           env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})   # stdin holds the hook's JSON
         except (OSError, subprocess.SubprocessError):
             pass
         return None
@@ -44,7 +45,7 @@ def refresh_config(path):
             repo = json.load(f).get("config_repo")
     except (OSError, ValueError, AttributeError):
         repo = None
-    if not isinstance(repo, str) or not re.fullmatch(r"[\w.-]+/[\w.-]+", repo):
+    if not isinstance(repo, str) or not re.fullmatch(r"\w[\w.-]*/\w[\w.-]*", repo):
         return f"{TOKEN_ENV} is set, but the pasted settings have no config_repo, so the latest settings were not read. Using the pasted copy."
     url = f"https://raw.githubusercontent.com/{repo}/HEAD/config.json"
     try:
@@ -61,9 +62,16 @@ def refresh_config(path):
         why = str(e).replace(token, "***")
         return f"The latest settings could not be read from {repo} ({why}). Using the pasted copy."
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(conf, f, indent=2)
-    os.replace(tmp, path)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(conf, f, indent=2)
+        problem = config_problem(tmp)   # a broken latest copy must not replace a good pasted one
+        if problem:
+            os.remove(tmp)
+            return f"The latest settings in {repo} are broken, so they were not used. Using the pasted copy."
+        os.replace(tmp, path)
+    except OSError as e:
+        return f"The latest settings could not be saved ({e}). Using the pasted copy."
     return None
 
 

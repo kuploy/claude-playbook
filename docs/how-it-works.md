@@ -150,7 +150,7 @@ Cloud sessions use the settings you pasted. When you change `config.json`, pick 
   2. In the cloud environment's settings, add an environment variable: `PLAYBOOK_CONFIG_TOKEN=` followed by the token. Never paste the token into a chat.
   3. Check that your `config.json` has `config_repo` set (see [Your config](#your-config)). Paste the Setup script one last time, so the session knows where to look.
 
-  If the token stops working (it expired or was deleted), sessions go on with the last pasted settings, and say so when they start. Make a new token and replace the variable.
+  If the token stops working (it expired or was deleted), sessions go on with the last pasted settings, and say so when they start. Make a new token and replace the variable. The same happens if the latest `config.json` is broken: it is not used, so a mistake in the repo can't switch your blocks off.
 
 With a token, the pasted script still holds your full settings, on purpose. It is the backup: if the token stops working, your blocks and checks stay on, and the session tells you. While the token works, an old pasted copy does no harm, because each session replaces it with the latest.
 
