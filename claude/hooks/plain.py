@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Stop hook (#48): sends a chat reply back once when it breaks the plain-language rules.
 
-Reads the reply that ends the turn (the assistant text after the last tool result) from the
-transcript, and flags what can be matched: listed words, listed phrases, sentences over a length.
-On a hit it returns `decision: block` with the lines quoted, so the session rewrites before the
-owner reads it. Once per turn: when the session is already continuing from a Stop block
-(`stop_hook_active`), it says nothing, so a session is never trapped.
+Reads the reply that ends the turn (`last_assistant_message`, else the assistant text after the
+last tool result in the transcript, which can lag at Stop time), and flags what can be matched:
+listed words, listed phrases, sentences over a length.
+On a hit it returns `decision: block` with the lines quoted, and the session sends a rewrite.
+A Stop hook runs after the reply is on screen, so the owner sees both; the rewrite opens with
+"Rewritten:" so they know which one to read (#61). Once per turn: when the session is already
+continuing from a Stop block (`stop_hook_active`), it says nothing, so a session is never trapped.
 
 Code, inline code, links and table rows are skipped; they are not prose.
 PR bodies, commits and reviews go through tools, not the reply, so guard.py keeps their rules.
@@ -109,15 +111,21 @@ def main():
     if data.get("stop_hook_active"):
         return
     rules = load_rules()
-    path = data.get("transcript_path")
-    if not rules or not isinstance(path, str):
+    if not rules:
         return
-    hits = findings(last_reply(path), rules)
+    reply = data.get("last_assistant_message")   # the transcript can lag the turn at Stop time
+    path = data.get("transcript_path")
+    if not isinstance(reply, str):
+        reply = last_reply(path) if isinstance(path, str) else None
+    if not reply:
+        return
+    hits = findings(reply, rules)
     if not hits:
         return
     quoted = "\n".join(f"- {', '.join(why)}: \"{s[:200]}\"" for s, why in hits[:QUOTES])
     more = f"\n(and {len(hits) - QUOTES} more)" if len(hits) > QUOTES else ""
-    reason = ("Your reply breaks the plain-language rules (rules: \"How to talk to me\"). Rewrite it and send it again: "
+    reason = ("Your reply breaks the plain-language rules (rules: \"How to talk to me\"). Send only \"Rewritten:\" and the new text, "
+              "no intro and no apology, since the owner already saw the first one: "
               "someone does X, then Y happens; one idea per sentence. Shorter, but never a different claim: "
               "keep every if, when and maybe, and add nothing the first draft did not say.\n" + quoted + more)
     print(json.dumps({"decision": "block", "reason": reason}))
