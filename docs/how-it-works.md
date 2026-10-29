@@ -166,7 +166,7 @@ Before you merge a deletion, run the check in step 3 on every computer that work
 
 When a session starts, and again after it compacts (summarises its own history to make room), it is told where its notes file is and shown what's in it. Why a session keeps notes: `rules/account-instructions.md`, "Notes file".
 
-The hook only **shows** the file. Writing it is the session's job, and nothing checks that it happens. A session that stops writing it comes back from a compaction with old notes and only the summary to go on (#56: the lead's notes were 9 hours old). A session whose computer or environment was set up before #42 has no hook at all, so it is never shown the file. To check a session, open `~/.claude/notes/<session_id>.md` on its machine and look at the time it was last changed.
+The hook only **shows** the file. Writing it is the session's job, and nothing checks that it happens. The hook runs at start, on resume and after a compaction. A session that stops writing the file comes back from a compaction with old notes and only the summary to go on (#56: the lead's notes were 9 hours old). A session whose computer or environment was set up before #42 has no hook at all, so it is never shown the file. To check a session, open `~/.claude/notes/<session_id>.md` on its machine and look at the time it was last changed.
 
 ## The guard hook
 
