@@ -9,7 +9,9 @@
 # so a hook change needs no re-paste. No clone: the hooks do nothing.
 #
 # Your own settings (#44) go between the CONFIG lines: the contents of config.json from your config repo.
-# {} means none: no owner-only commands are blocked. After changing config.json, paste again.
+# {} means none: no owner-only commands are blocked. After changing config.json, paste again, or set
+# PLAYBOOK_CONFIG_TOKEN in the environment once and each session reads the latest itself (#53,
+# docs/how-it-works.md, "When your settings change").
 #
 # It overwrites ~/.claude/settings.json; a fresh cloud container has none.
 # Keep the matchers in step with claude/settings.json. Changing this file means pasting again.
