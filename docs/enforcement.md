@@ -49,6 +49,7 @@
 | `autoCompactWindow` on **cloud** | Enforced when read | From `~/.claude/settings.json`, written by the Setup script (#42). Without it, the default (about 784k). |
 | Default model and effort | Convention | Desktop only. Cloud sessions are set when started. |
 | `chore` Haiku agent | Convention | Main session decides to delegate. Untested. |
+| Notes file kept current (#42): a hook shows it at start and after each compaction | Willpower: the session writes it, nothing checks | Shown after a compaction: not checked live. Kept: failed once, 2026-10-29: the lead's notes were 9 hours stale, and its container predates the setup, so no hook showed them either (#56) |
 | Spawn cap (3 live per spawner), spawner archives on task end, push before leaving, one-line messages, thread owner reports, restart peers after a rule change | Willpower | About ten old idle sessions exist |
 
 ## What a session reads (tested 2026-10-23/24)
