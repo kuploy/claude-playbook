@@ -59,18 +59,33 @@ jobs:
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: number, per_page: 100 });
             const reviews = await github.paginate(github.rest.pulls.listReviews, { owner, repo, pull_number: number, per_page: 100 });
             const items = [
-              ...comments.map(c => ({ body: c.body, at: c.created_at, assoc: c.author_association })),
-              ...reviews.map(r => ({ body: r.body, at: r.submitted_at, assoc: r.author_association })),
+              ...comments.map(c => ({ body: c.body, at: c.created_at, login: c.user?.login })),
+              ...reviews.map(r => ({ body: r.body, at: r.submitted_at, login: r.user?.login })),
             ].sort((a, b) => new Date(a.at) - new Date(b.at));
 
-            const trusted = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+            // Write access is asked of GitHub per author (#55). author_association can't see a
+            // private org membership, so an org member shows up as CONTRIBUTOR and never counted.
+            // A failed lookup (a bot, a deleted account) counts as no access.
+            const canWrite = async login => {
+              try {
+                const r = await github.rest.repos.getCollaboratorPermissionLevel({ owner, repo, username: login });
+                return ['admin', 'write'].includes(r.data.permission);
+              } catch (e) {
+                core.info(`two-reviews: no permission for ${login} (${e.message}); not counted`);
+                return false;
+              }
+            };
+            const writers = new Set();
+            for (const login of new Set(items.filter(it => it.login && /^\s*Reviewer:/im.test(it.body || '')).map(it => it.login))) {
+              if (await canWrite(login)) writers.add(login);
+            }
             const field = (body, name) =>
               (body.match(new RegExp(`^\\s*${name}:[ \\t]*(.+)$`, 'im')) || [])[1]?.trim();
 
             // Latest review per reviewer name, only from people with write access, only after the last push.
             const latest = new Map();
             for (const it of items) {
-              if (!it.body || !trusted.has(it.assoc) || new Date(it.at) <= since) continue;
+              if (!it.body || !writers.has(it.login) || new Date(it.at) <= since) continue;
               const who = field(it.body, 'Reviewer');
               const verdict = field(it.body, 'Verdict');
               if (!who || !verdict) continue;
