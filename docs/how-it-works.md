@@ -59,6 +59,7 @@ The playbook is the same for everyone. What is yours lives in one file, `config.
 
 ```json
 {
+  "config_repo": "your-org/claude-playbook-config",
   "epic_home": "your-org/your-planning-repo",
   "repos": ["your-org/app", "your-org/docs"],
   "owner_only": {
@@ -78,6 +79,7 @@ The playbook is the same for everyone. What is yours lives in one file, `config.
 }
 ```
 
+- **`config_repo`**: this repo's own name. Cloud sessions with a token use it to read the latest settings ([below](#when-your-settings-change)).
 - **`repos`**: the repos `scripts/copy-by-hand.sh` copies files into.
 - **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command. With `only_in`, the command counts only when that text is in the folder name or the command. Setting the variable for the owner's session: [enforcement.md](enforcement.md#the-owner-only-switch).
 - **`epic_home`**: the repo where your epics live. The new-branch check looks there for an issue the current repo doesn't have.
@@ -127,7 +129,7 @@ The checks (the guard, the notes reminder and the reply check) run from a copy o
    git clone git@github.com:your-org/claude-playbook-config.git ~/Devl/Projects/claude-playbook-config
    ln -s ~/Devl/Projects/claude-playbook-config/config.json ~/.claude/playbook-config.json
    ```
-   After a change to `config.json`, pull this clone. Nothing else.
+   After that, each new session pulls this clone first, so a change to `config.json` reaches the next session. Nothing to do.
 5. Open a new session and run the canary test (below).
 
 ### In the cloud, once per environment
@@ -136,7 +138,23 @@ The checks (the guard, the notes reminder and the reply check) run from a copy o
 2. In the environment's settings, paste the result under **Setup script**.
 3. Open a new session and run the canary test (below).
 
-Only sessions started afterwards get the checks. Paste again when `cloud-setup.sh` or your `config.json` changes.
+Only sessions started afterwards get the checks.
+
+#### When your settings change
+
+Cloud sessions use the settings you pasted. When you change `config.json`, pick one way to pass on the change:
+
+- **Paste again.** Repeat steps 1 and 2. Nothing else to set up.
+- **Or add a token once, and never paste again.** Each new session then reads the latest `config.json` itself.
+  1. On GitHub: **Settings**, **Developer settings**, **Fine-grained tokens**, **Generate new token**. Set **Resource owner** to the account that owns `claude-playbook-config` (your organization, if it is there). Under **Expiration**, pick **No expiration** if offered, else the longest allowed. Under repository access, pick only `claude-playbook-config`. Under permissions, set **Contents** to **Read-only**. If your organization asks for approval, an owner approves it in the organization's settings, under **Personal access tokens**.
+  2. In the cloud environment's settings, add an environment variable: `PLAYBOOK_CONFIG_TOKEN=` followed by the token. Never paste the token into a chat.
+  3. Check that your `config.json` has `config_repo` set (see [Your config](#your-config)). Paste the Setup script one last time, so the session knows where to look.
+
+  If the token stops working (it expired or was deleted), sessions go on with the last pasted settings, and say so when they start. Make a new token and replace the variable. The same happens if the latest `config.json` is broken: it is not used, so a mistake in the repo can't switch your blocks off.
+
+With a token, the pasted script still holds your full settings, on purpose. It is the backup: if the token stops working, your blocks and checks stay on, and the session tells you. While the token works, an old pasted copy does no harm, because each session replaces it with the latest.
+
+Either way, paste again when `cloud-setup.sh` itself changes.
 
 ### Old copies in repos
 
