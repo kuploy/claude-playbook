@@ -96,13 +96,14 @@ The checks (the guard and the notes reminder) run from a copy of this repo. You 
    Cloud sessions get these from my Claude account settings. Desktop sessions get them from the playbook file below.
    @~/Devl/Projects/claude-playbook/rules/account-instructions.md
    ```
-3. Turn on the checks: add the `hooks` part of `claude/settings.json` to `~/.claude/settings.json`. This keeps a backup and adds only the hooks you are missing; the rest of your file is untouched:
+3. Turn on the checks: add the `hooks` part of `claude/settings.json` to `~/.claude/settings.json`. The first run keeps a backup (`settings.json.bak`, never overwritten later) and adds only the hooks you are missing; the rest of your file is untouched:
    ```sh
    python3 - <<'EOF'
    import json, os, shutil
    u = os.path.expanduser("~/.claude/settings.json")
    p = os.path.expanduser("~/Devl/Projects/claude-playbook/claude/settings.json")
-   if os.path.exists(u): shutil.copy(u, u + ".bak")
+   os.makedirs(os.path.dirname(u), exist_ok=True)
+   if os.path.exists(u) and not os.path.exists(u + ".bak"): shutil.copy(u, u + ".bak")
    mine, pb = (json.load(open(u)) if os.path.exists(u) else {}), json.load(open(p))
    h = mine.setdefault("hooks", {})
    for ev, entries in pb["hooks"].items():
@@ -113,7 +114,7 @@ The checks (the guard and the notes reminder) run from a copy of this repo. You 
    ```
    Check: both lines must show a `guard.py` path. An empty list means no session on this computer is guarded.
    ```sh
-   python3 -c "import json,os;h=json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('hooks',{});[print(e,[x['command'] for m in h.get(e,[]) for x in m['hooks']]) for e in ('PreToolUse','PostToolUse')]"
+   python3 -c "import json,os;h=json.load(open(os.path.expanduser('~/.claude/settings.json'))).get('hooks',{});[print(e,[x.get('command', x.get('type')) for m in h.get(e,[]) for x in m['hooks']]) for e in ('PreToolUse','PostToolUse')]"
    ```
 4. Give the checks your config. Get your config repo and link its file:
    ```sh
