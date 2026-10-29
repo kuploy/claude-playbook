@@ -72,15 +72,19 @@ def prose(text):
 
 
 def findings(text, rules):
-    words = [w for w in rules.get("words", []) if isinstance(w, str) and w]
+    def listed(key):   # a wrong-typed part counts as absent, so a bad config never sends a reply back
+        v = rules.get(key)
+        return v if isinstance(v, list) else []
+
+    words = [w for w in listed("words") if isinstance(w, str) and w]
     phrases = []
-    for p in rules.get("phrases", []):
+    for p in listed("phrases"):
         try:
             phrases.append(re.compile(p, re.I))
         except (TypeError, re.error):
             continue
     limit = rules.get("max_words")
-    limit = limit if isinstance(limit, int) and limit > 0 else None
+    limit = limit if type(limit) is int and limit > 0 else None   # not bool, which is an int
     word_re = re.compile(r"\b(" + "|".join(re.escape(w) for w in words) + r")s?\b", re.I) if words else None
 
     hits = []
