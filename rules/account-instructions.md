@@ -104,7 +104,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 - Keep a PR body to 15 lines: what changed, why, how you verified it, reviewers. Detail goes in commits or a linked file.
 - After you nudge reviewers, subscribe to the PR and end your turn. Don't poll, and don't nudge twice.
   Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR. It missed two plain-comment
-  reviews on kuploy-docs#235 (24 Oct), so don't count on it to wake you for a review. If you
+  reviews on a docs PR (24 Oct), so don't count on it to wake you for a review. If you
   can't subscribe, tell me you're waiting and on whom.
 - Never say a PR is waiting on review without reading its comments in that same turn.
 - Before you say what state a branch or PR is in (merged, on `dev`, on `main`), read it live, not from your local `origin/*` refs. Cloud clones are shallow and single-branch, so those refs go stale or don't exist (a lead reported two merged PRs as unmerged that way, 2026-10-26). Ask GitHub first (the PR's `merged` flag, or compare `<sha>...dev`: "ahead" or "identical" means `dev` has it). With git, fetch history, not just the tip: `git fetch --depth=200 origin +refs/heads/dev:refs/remotes/origin/dev`, then `git merge-base --is-ancestor <sha> origin/dev`. In a shallow clone any exit but 0 means "can't tell", not "not merged". When two sources disagree, say so and check a third before acting.

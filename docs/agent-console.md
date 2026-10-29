@@ -17,7 +17,7 @@ The database never holds a rule or a task. If the app is down, agents keep worki
 
 ## Roles, not session names
 
-Session names change on every restart. Work goes to a **role** (`epay-docs`, `epay-review`, …). The app tracks which session holds each role now.
+Session names change on every restart. Work goes to a **role** (`docs`, `review`, …). The app tracks which session holds each role now.
 
 ## Agents pull their work
 

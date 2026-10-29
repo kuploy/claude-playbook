@@ -1,22 +1,8 @@
 # Read by repo-file-sync-action (see .github/workflows/sync.yml).
-# Each push to main opens a PR in every repo below whose copy differs.
-# New repo: add a line under `repos`. Repo wants its own version of a file: see docs/how-it-works.md.
+# Each push to main opens a PR in every listed repo whose copy differs.
+# The repo list lives in your playbook config (#44), not here: add a `repos: |` list above `files:`
+# before turning the Action on again. See docs/how-it-works.md.
 group:
-  repos: |
-    kuploy/kuploy
-    kuploy/kuploy-cloud
-    kuploy/growthops
-    kuploy/kuploy-docs
-    kuploy/kuploy-k8s
-    kuploy/kuploy-hub
-    kuploy/kuploy-templates
-    kuploy/app-vitrine
-    ceduth/epay-gateway
-    ceduth/epay-gateway-docs
-    ceduth/ariselabs.co
-    ceduth/roadprep
-    leeram-hq/business
-    kuploy/claude-agent-console
   files:
     - source: sync/pull_request_template.md
       dest: .github/pull_request_template.md

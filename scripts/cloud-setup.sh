@@ -8,6 +8,9 @@
 # clones the public playbook and points user settings at it. Each session start pulls the clone,
 # so a hook change needs no re-paste. No clone: the hooks do nothing.
 #
+# Your own settings (#44) go between the CONFIG lines: the contents of config.json from your config repo.
+# {} means none: no owner-only commands are blocked. After changing config.json, paste again.
+#
 # It overwrites ~/.claude/settings.json; a fresh cloud container has none.
 # Keep the matchers in step with claude/settings.json. Changing this file means pasting again.
 set -u
@@ -15,6 +18,9 @@ PB="$HOME/.claude/playbook"
 mkdir -p "$HOME/.claude"
 [ -d "$PB/.git" ] || git clone -q --depth 1 https://github.com/kuploy/claude-playbook.git "$PB" \
   || echo "cloud-setup: playbook clone failed; sessions run without its hooks" >&2
+cat > "$HOME/.claude/playbook-config.json" <<'CONFIG'
+{}
+CONFIG
 cat > "$HOME/.claude/settings.json" <<EOF
 {
   "autoCompactWindow": 250000,

@@ -10,7 +10,8 @@ and passes the call as JSON on stdin.
                     A repo whose CLAUDE.md has a `Pattern:` line gets the pattern's branch
                     rule instead of one PR per repo (#29): `feat/<role>/<n>-slug`, one open
                     branch per role, at most the pattern's writers. No line: unchanged.
-  2. Release, build or cluster-write commands -> deny unless CLAUDE_RELEASE_OWNER=1.
+  2. Owner-only commands -> deny those listed in the config's `owner_only` (#44) unless
+                    this session has the config's `allow_env` set to 1. No config: none.
   3. Merge       -> no opinion on a sync PR whose files all match the playbook (#40);
                     else deny if the `two-reviews` status exists and is not green;
                     if it is missing, count the reviews here and deny under two (#30);
@@ -21,6 +22,9 @@ and passes the call as JSON on stdin.
   5. Review      -> deny a comment with `Reviewer:` that lacks the 4 lines,
                     or has more than 5 lines after the block.
   6. After a PR is opened (PostToolUse) -> remind: subscribe, schedule a check-in.
+
+Config (#44): $CLAUDE_PLAYBOOK_CONFIG, else ~/.claude/playbook-config.json. It holds the
+customer's choices: `owner_only` and `epic_home`. Missing or unreadable: both are off.
 
 Silent exit 0 means no opinion: the normal permission flow continues.
 Fails open on bad input, so a bug here never bricks a session.
@@ -36,14 +40,13 @@ from datetime import datetime
 
 NEW_BRANCH_MSG = "Rule: never create a new branch without asking first. Approve only if the user said so in this conversation."
 FROZEN_MSG = "Scope gate: branch for a sub-issue of an open scope:frozen epic. Approved by the freeze."
-EPIC_HOME = "kuploy/claude-playbook"   # where epics and most of their issues live
+PLAYBOOK = "kuploy/claude-playbook"    # this repo: the source of synced files
 # Per pattern: (writers, whether the lead named by `lead = <role>` may write). Mirrors patterns/*.md.
 PATTERNS = {"lead-writer": (1, False), "peer-review": (1, True), "release-train": (2, False), "solo-audit": (1, True)}
 ROLE_BRANCH = re.compile(r"^feat/([A-Za-z0-9._-]+)/\d+-[A-Za-z]")
 # Options a frozen-epic branch command may carry and still be auto-approved. None runs a program.
 SAFE_OPTS = {"-b", "-B", "-c", "-C", "-u", "--set-upstream", "-t", "--track", "--no-track"}
-RELEASE_MSG = ("Rule: only the release owner session runs releases, builds or cluster writes "
-               "(kuploy-cloud CLAUDE.md). If you are that session, start it with CLAUDE_RELEASE_OWNER=1.")
+OWNER_ONLY_MSG = "Rule: only one session may run this command."
 
 PR_BODY_MAX = 15
 FINDINGS_MAX = 5
@@ -202,15 +205,44 @@ def creates_branch(sub, args):
     return None
 
 
-def is_release(cmd, cwd):
-    in_cloud = "kuploy-cloud" in cwd or "kuploy-cloud" in cmd
-    if re.search(r"docker/release\.sh", cmd):
-        return True
-    if in_cloud and re.search(r"(^|[\s/])(release|build)\.sh\b", cmd):
-        return True
-    if re.search(r"\bdocker\s+(buildx\s+)?(build|push)\b.*kuploy-cloud", cmd):
-        return True
-    return bool(re.search(r"\bkubectl\b.*\b(rollout|delete|apply|scale|patch|edit|replace|drain|cordon)\b", cmd))
+def load_config():
+    path = os.environ.get("CLAUDE_PLAYBOOK_CONFIG") or os.path.expanduser("~/.claude/playbook-config.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            conf = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return conf if isinstance(conf, dict) else {}
+
+
+CONFIG = load_config()
+EPIC_HOME = CONFIG.get("epic_home") or ""   # where epics live; empty: only the repo itself is asked
+
+
+def owner_only(cmd, cwd):
+    """The deny message when cmd matches one of the config's owner-only commands and this session isn't exempt.
+    A command's `match` is a regex on the command text; `only_in`, if set, must appear in the folder or the command.
+    A field of the wrong type fails closed: no exemption, no folder limit, the default message. notes.py reports it."""
+    rule = CONFIG.get("owner_only")
+    if not isinstance(rule, dict) or not isinstance(rule.get("commands"), list):
+        return None
+    env = rule.get("allow_env")
+    if isinstance(env, str) and env and os.environ.get(env) == "1":
+        return None
+    msg = rule.get("message")
+    for c in rule["commands"]:
+        if not isinstance(c, dict):
+            continue
+        where = c.get("only_in")
+        if isinstance(where, str) and where and where not in cwd and where not in cmd:
+            continue
+        try:
+            hit = bool(c.get("match")) and re.search(c["match"], cmd)
+        except (re.error, TypeError):   # notes.py reports a bad pattern at session start
+            continue
+        if hit:
+            return msg if isinstance(msg, str) and msg else OWNER_ONLY_MSG
+    return None
 
 
 def gh(*args):
@@ -294,9 +326,9 @@ def sync_copy(owner, repo, number, sha):
     """True when every file the PR adds or modifies is a sync.yml dest, a plain file whose blob at the head equals its
     source on playbook main (#40). Any other file, a rename, a deletion, a mode change, a mismatch or an unreadable reply:
     False, and the review rules apply."""
-    if repo.lower() == EPIC_HOME.split("/")[1]:
+    if repo.lower() == PLAYBOOK.split("/")[1]:
         return False
-    conf = gh("api", f"repos/{EPIC_HOME}/contents/.github/sync.yml?ref=main", "-H", "Accept: application/vnd.github.raw")
+    conf = gh("api", f"repos/{PLAYBOOK}/contents/.github/sync.yml?ref=main", "-H", "Accept: application/vnd.github.raw")
     pairs = dict((d, s) for s, d in re.findall(r"-\s*source:\s*(\S+)\s*\n\s*dest:\s*(\S+)", conf or ""))
     files = gh("api", "--paginate", f"repos/{owner}/{repo}/pulls/{number}/files", "--jq", ".[] | [.filename, .status] | @json")
     if not pairs or not files:
@@ -306,7 +338,7 @@ def sync_copy(owner, repo, number, sha):
         if name not in pairs or status not in ("added", "modified"):
             return False
         head = blob(f"{owner}/{repo}", name, sha)
-        if not head or not head.startswith("file ") or head != blob(EPIC_HOME, pairs[name], "main"):
+        if not head or not head.startswith("file ") or head != blob(PLAYBOOK, pairs[name], "main"):
             return False
     return True
 
@@ -457,7 +489,7 @@ def check_new_branch(owner, repo, name):
     frozen = frozen_parent(full, n)
     # The epic home is asked only when this repo has no issue n of its own (none, or it is a PR).
     # A failed lookup is not "no issue": it falls through to ask.
-    if frozen is None and full != EPIC_HOME and issue_kind(full, n) in ("pr", "none"):
+    if frozen is None and EPIC_HOME and full != EPIC_HOME and issue_kind(full, n) in ("pr", "none"):
         frozen = frozen_parent(EPIC_HOME, n)
     if frozen:
         return True
@@ -511,8 +543,9 @@ def main():
                 if sub == "push" and name and git_out(d, "ls-remote", "--heads", "origin", name):
                     continue   # branch already on the remote: not new
                 allowed = check_new_branch(*origin_repo(d), name) or allowed
-    if os.environ.get("CLAUDE_RELEASE_OWNER") != "1" and is_release(cmd, cwd):
-        decide("deny", RELEASE_MSG)
+    msg = owner_only(cmd, cwd)
+    if msg:
+        decide("deny", msg)
     # Auto-approve only a bare `git [-C dir] <sub> ...` of plain words: no compound, substitution,
     # redirect, env prefix or `-c` setting, since those can run a program the user never saw.
     # Options after the subcommand must be on SAFE_OPTS: `push --receive-pack <cmd>` (or any

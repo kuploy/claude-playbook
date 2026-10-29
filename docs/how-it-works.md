@@ -15,14 +15,15 @@
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once (again after #42: it now carries the hooks) |
 | `claude/hooks/guard.py`, `notes.py` | nowhere: they run from your copy of the playbook (see [Setting up](#setting-up)) | Claude Code, before tool calls / at start and after a compaction | not copied; each new session updates your copy |
-| `scripts/cloud-setup.sh` | the cloud environment's Setup script | the container, when it is built | you, once per environment |
+| `scripts/cloud-setup.sh` | the cloud environment's Setup script, with your config pasted in | the container, when it is built | you, once per environment |
+| your `config.json` (not in this repo: see [Your config](#your-config)) | `~/.claude/playbook-config.json` | the guard and the notes reminder | you, once per computer (a link) and once per environment (in the Setup script) |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
 ## The sync Action (disabled)
 
 [repo-file-sync-action](https://github.com/BetaHuhn/repo-file-sync-action) copies the files in `.github/sync.yml` into the other repos as PRs. It is switched off (Actions minutes). Use `scripts/copy-by-hand.sh` instead (below).
 
-- **New repo:** add its name to `.github/sync.yml`.
+- **New repo:** add it to `repos` in your config. The Action needs the list in `.github/sync.yml` too, if it is ever turned on again.
 - **A repo wants its own version of a file:** merge once, then remove that repo from the list for that file.
 - **Sync PRs need one check, not two reviews:** the file's blob hash matches the playbook (`git hash-object sync/<file>`). Post it once as a comment. The guard runs the same check before a merge and lets a matching PR through. Any difference, and the 2-review rule applies. (Owner decision, 2026-10-20.)
 - **If the Action is turned on again:** it needs a `SYNC_TOKEN` secret (classic PAT, `repo` scope; you have three owners).
@@ -52,6 +53,32 @@ Would catch: <what that would have caught>
 
 **Limits:** it trusts the `Reviewer:` name and does not check that `Ran:` is true. Not yet run on a real PR. Not live (Actions billing limit).
 
+## Your config
+
+The playbook is the same for everyone. What is yours lives in one file, `config.json`, in a private repo of your own named `claude-playbook-config`. No secrets go in it.
+
+```json
+{
+  "epic_home": "your-org/your-planning-repo",
+  "repos": ["your-org/app", "your-org/docs"],
+  "owner_only": {
+    "allow_env": "CLAUDE_RELEASE_OWNER",
+    "message": "Only the release session runs this. Start that session with CLAUDE_RELEASE_OWNER=1.",
+    "commands": [
+      {"match": "scripts/release\\.sh"},
+      {"match": "\\bkubectl\\b.*\\b(apply|delete|scale)\\b"},
+      {"match": "(^|[\\s/])build\\.sh\\b", "only_in": "your-app"}
+    ]
+  }
+}
+```
+
+- **`repos`**: the repos `scripts/copy-by-hand.sh` copies files into.
+- **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command. With `only_in`, the command counts only when that text is in the folder name or the command.
+- **`epic_home`**: the repo where your epics live. The new-branch check looks there for an issue the current repo doesn't have.
+
+Every part is optional. With no config file, nothing is refused as owner-only, and the new-branch check only looks in the current repo. Each new session says so when the file is missing, can't be read, lists no owner-only commands, or has a field of the wrong type. A wrong-typed field fails closed: the command stays refused everywhere, with no exemption. If you have no owner-only commands, that one line appears in every session; it is a reminder, not an error.
+
 ## Setting up
 
 The checks (the guard and the notes reminder) run from a copy of this repo. You set that copy up once per computer and once per cloud environment. After that, every session gets the checks, in every repo. Each new session updates the copy first, so a change to the checks reaches everyone without you doing anything.
@@ -70,14 +97,21 @@ The checks (the guard and the notes reminder) run from a copy of this repo. You 
    @~/Devl/Projects/claude-playbook/rules/account-instructions.md
    ```
 3. Turn on the checks. Copy `claude/settings.json` into `~/.claude/settings.json`. If you already have settings there, add its `hooks` part next to yours rather than replacing the file.
-4. Open a new session and run the canary test (below).
+4. Give the checks your config. Get your config repo and link its file:
+   ```sh
+   git clone git@github.com:your-org/claude-playbook-config.git ~/Devl/Projects/claude-playbook-config
+   ln -s ~/Devl/Projects/claude-playbook-config/config.json ~/.claude/playbook-config.json
+   ```
+   After a change to `config.json`, pull this clone. Nothing else.
+5. Open a new session and run the canary test (below).
 
 ### In the cloud, once per environment
 
-1. In the environment's settings, paste the contents of `scripts/cloud-setup.sh` under **Setup script**.
-2. Open a new session and run the canary test (below).
+1. Copy `scripts/cloud-setup.sh`. Replace the `{}` between the two `CONFIG` lines with the contents of your `config.json`.
+2. In the environment's settings, paste the result under **Setup script**.
+3. Open a new session and run the canary test (below).
 
-Only sessions started afterwards get the checks. Paste again only if `cloud-setup.sh` itself changes.
+Only sessions started afterwards get the checks. Paste again when `cloud-setup.sh` or your `config.json` changes.
 
 ### Old copies in repos
 
@@ -95,7 +129,7 @@ When a session starts, and again after it compacts (summarises its own history t
 |---|---|
 | Scope gate on new branches (#13) | On `git checkout -b`, `switch -c`, `branch <name>`, `worktree add -b`, `push -u` and the GitHub create-branch tool: **denies** a name without an issue number (`feat/<n>-slug`) or a repo with another open PR of yours; **allows** if issue `<n>` (in that repo, else in claude-playbook) is a sub-issue of an open epic labelled `scope:frozen`; **asks you** otherwise or if GitHub can't be reached. To add scope, add the issue to the epic yourself |
 | Pattern branches (#29) | Only in a repo whose CLAUDE.md has a `Pattern:` line, in place of one open PR per repo: **denies** a branch that isn't `feat/<role>/<n>-slug`, a branch for the lead in lead-writer and release-train (the lead doesn't write), a second open branch for a role, and more roles than the pattern's writers (release-train 2, others 1). No line, or a name it doesn't know: the one-PR rule, as before |
-| Only the release owner releases | **Denies** `docker/release.sh`, `build.sh`/`release.sh` in kuploy-cloud, `docker build/push ... kuploy-cloud`, `kubectl` writes. `CLAUDE_RELEASE_OWNER=1` exempts a session |
+| Owner-only commands (#44) | **Denies** the commands in your config's `owner_only`. A session with the `allow_env` variable set to `1` is exempt. No config: denies none |
 | 2 reviews before merge | On a merge: **allows** if `two-reviews` is green, **denies** if red. If missing, it counts the reviews itself and **denies** under two; **asks** only if GitHub can't be read (#30). With `CLAUDE_REVIEW_GATE=local` it counts the reviews itself and **denies** under two: see [enforcement.md](enforcement.md#claude_review_gate) |
 | Short PR bodies | **Denies** a PR body over 15 lines (footer not counted) |
 | Review format | **Denies** a `Reviewer:` comment missing a line or with more than 5 lines after the block |
@@ -127,22 +161,22 @@ echo '{"tool_name":"Bash","tool_input":{"command":"git checkout -b x"}}' | pytho
 ```
 In a repo with a `Pattern:` line, `git checkout -b feat/9-x` (no role) should also print `"deny"`.
 
-**Canary test** (once per session type, in a **new** session): ask it to run `echo docker/release.sh`, then `git checkout -b canary-test`, one at a time, and report each outcome without retrying.
-- First refused ("only the release owner") → hook runs.
+**Canary test** (once per session type, in a **new** session): ask it to run `echo <a command from your owner_only list>`, then `git checkout -b canary-test`, one at a time, and report each outcome without retrying.
+- First refused (your `owner_only` message) → hook runs and found your config.
 - Second shows an approval prompt → ask works. Click **Deny**.
-- First just prints → hook did not run. Check the folder-trust prompt, `python3` on PATH, and that the session started after the files landed.
+- First just prints → the hook did not run, or it has no config. If the session said "No playbook config", fix the config step. Otherwise check the folder-trust prompt, `python3` on PATH, and that the session started after the files landed.
 
 Passed on cloud and desktop.
 
 ## When Actions minutes run out
 
-`scripts/copy-by-hand.sh` does the sync Action's job from your terminal, reading `.github/sync.yml`. Needs SSH access and the `gh` CLI.
+`scripts/copy-by-hand.sh` does the sync Action's job from your terminal. It takes the files from `.github/sync.yml` and the repos from your config. Needs SSH access and the `gh` CLI.
 
 ```sh
 scripts/copy-by-hand.sh --list                         # show plan, change nothing
 scripts/copy-by-hand.sh --dry-run --only .claude       # rehearse
 scripts/copy-by-hand.sh --only .claude                 # one draft PR per repo
-scripts/copy-by-hand.sh --only .claude ceduth/roadprep # just these repos
+scripts/copy-by-hand.sh --only .claude your-org/app    # just these repos
 ```
 
 - Always pass `--only`: without it the script also copies `two-reviews.yml`, and a required check that never runs blocks every merge.
