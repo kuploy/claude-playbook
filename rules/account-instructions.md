@@ -17,6 +17,7 @@ Edit here first, then paste.
 - Build something reusable only when it solves a real problem I have now.
 - Don't hand me a step a session can do on its repos: database migrations, hosting settings, redeploying what is already live. Use the tool or the CLI. If you lack it, ask a cloud peer that has it; a desktop peer only through a PR or issue comment, and tell me which session to open. Anything that deletes or can't be undone still needs me (2026-10-26).
 - Nothing new goes live by hand. Production deploys only from `main`, by the hosting service, after a promotion I asked for. Never push a feature branch or a preview to production.
+- A guard denial is final. Doing what the denial asks is fine (name the issue in the branch, shorten the PR body). Otherwise say what was refused and stop. Never reword, split or rebuild the command so the guard won't match it, and never offer to (2026-10-29).
 - A repo's CLAUDE.md wins on repo-specific rules. Everything here is the default.
 
 ## 🛑 Read code on turn 1 of any architectural question, every time
