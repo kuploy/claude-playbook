@@ -18,6 +18,12 @@
 | A computer or cloud environment not set up | No guard | Set up once each: [how-it-works.md](how-it-works.md#setting-up). A session that starts without the playbook copy is told so. |
 | A session edits or deletes its own playbook copy or config | Guard changed or gone | Known gap. The next pull doesn't undo a local edit. |
 
+## Reply check (`claude/hooks/plain.py`, a `Stop` hook, #48)
+| What | Level | Status |
+|---|---|---|
+| The reply that ends a turn: flags your config's `plain_language` words, phrases and long sentences, and **sends it back once** with the lines quoted | Best effort: catches patterns, not clarity. Chat replies only; PR text goes through the guard. Sentences are counted per line, so one long sentence wrapped over two lines gets through | Tested on scratch transcripts (21 cases), 2026-10-29. Live: a headless `claude -p` (2.1.312) reply with a listed word was sent back once with the line quoted, rewritten, then let through on the second stop. Interactive desktop and cloud not run |
+| Second stop in the same turn, no `plain_language`, a bad config or an unreadable transcript. A wrong-typed part (say `phrases` as text) is skipped | No check, no error | Tested |
+
 ## Checks, GitHub, tooling
 | What | Level | Status |
 |---|---|---|

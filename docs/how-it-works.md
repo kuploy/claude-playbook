@@ -14,9 +14,9 @@
 | `sync/two-reviews.yml` | `.github/workflows/two-reviews.yml` in each repo | GitHub Actions | sync Action |
 | `claude/agents/chore.md` | `~/.claude/agents/` on each machine | Claude Code, at session start | you, once (symlink) |
 | `claude/settings.json` | merged into `~/.claude/settings.json` | Claude Code | you, once (again after #42: it now carries the hooks) |
-| `claude/hooks/guard.py`, `notes.py` | nowhere: they run from your copy of the playbook (see [Setting up](#setting-up)) | Claude Code, before tool calls / at start and after a compaction | not copied; each new session updates your copy |
+| `claude/hooks/guard.py`, `notes.py`, `plain.py` | nowhere: they run from your copy of the playbook (see [Setting up](#setting-up)) | Claude Code, before tool calls / at start and after a compaction / when a turn ends | not copied; each new session updates your copy |
 | `scripts/cloud-setup.sh` | the cloud environment's Setup script, with your config pasted in | the container, when it is built | you, once per environment |
-| your `config.json` (not in this repo: see [Your config](#your-config)) | `~/.claude/playbook-config.json` | the guard and the notes reminder | you, once per computer (a link) and once per environment (in the Setup script) |
+| your `config.json` (not in this repo: see [Your config](#your-config)) | `~/.claude/playbook-config.json` | the guard, the notes reminder and the reply check | you, once per computer (a link) and once per environment (in the Setup script) |
 | `rules/account-instructions.md` | desktop: imported by `~/.claude/CLAUDE.md`; cloud: pasted into account settings | Claude Code, at session start | you, on each change |
 
 ## The sync Action (disabled)
@@ -69,6 +69,11 @@ The playbook is the same for everyone. What is yours lives in one file, `config.
       {"match": "\\bkubectl\\b.*\\b(apply|delete|scale)\\b"},
       {"match": "(^|[\\s/])build\\.sh\\b", "only_in": "your-app"}
     ]
+  },
+  "plain_language": {
+    "words": ["risk", "surface", "failure mode", "semantics", "consequence"],
+    "phrases": ["\\bnot just\\b.*\\bbut\\b"],
+    "max_words": 30
   }
 }
 ```
@@ -76,12 +81,13 @@ The playbook is the same for everyone. What is yours lives in one file, `config.
 - **`repos`**: the repos `scripts/copy-by-hand.sh` copies files into.
 - **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command. With `only_in`, the command counts only when that text is in the folder name or the command. Setting the variable for the owner's session: [enforcement.md](enforcement.md#the-owner-only-switch).
 - **`epic_home`**: the repo where your epics live. The new-branch check looks there for an issue the current repo doesn't have.
+- **`plain_language`**: what the reply check flags in a chat reply (#48). `words` match whole words, plurals too. `phrases` are regular expressions. `max_words` is the longest sentence allowed. A hit sends the reply back once, with the lines quoted. Code, tables and link addresses are not checked. No `plain_language`: no check. A part of the wrong type is skipped.
 
 Every part is optional. With no config file, nothing is refused as owner-only, and the new-branch check only looks in the current repo. Each new session says so when the file is missing, can't be read, lists no owner-only commands, or has a field of the wrong type. A wrong-typed field fails closed: the command stays refused everywhere, with no exemption. If you have no owner-only commands, that one line appears in every session; it is a reminder, not an error.
 
 ## Setting up
 
-The checks (the guard and the notes reminder) run from a copy of this repo. You set that copy up once per computer and once per cloud environment. After that, every session gets the checks, in every repo. Each new session updates the copy first, so a change to the checks reaches everyone without you doing anything.
+The checks (the guard, the notes reminder and the reply check) run from a copy of this repo. You set that copy up once per computer and once per cloud environment. After that, every session gets the checks, in every repo. Each new session updates the copy first, so a change to the checks reaches everyone without you doing anything.
 
 ### On your computer, once
 
