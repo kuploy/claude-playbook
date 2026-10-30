@@ -160,6 +160,12 @@ def segment_start(cmd, i):
     return start
 
 
+# body_is_ghs asks whether a segment starts with gh, which is a name, and a command can give that name
+# to something else first: `gh(){ bash; }; gh <<'E'` reads the heredoc into a shell (#75 review 7).
+# Three spellings define or rebind it; a command that does any of them keeps its body.
+REDEFINES_GH = re.compile(r"\bgh\s*\(\s*\)|\bfunction\s+gh\b|\balias\s+gh=")
+
+
 def body_is_ghs(cmd, intro):
     """Does the body introduced at `intro` belong to a gh command?
 
@@ -202,6 +208,8 @@ def outside_body(cmd):
         return cmd
     intro, start, end, inert = found
     if not inert:
+        return cmd
+    if REDEFINES_GH.search(cmd):   # the gh reading this body is whatever this command just made it
         return cmd
     if not body_is_ghs(cmd, intro):
         return cmd
