@@ -160,28 +160,30 @@ def segment_start(cmd, i):
     return start
 
 
-# body_is_ghs trusts two command names, and a command can give either name to something else first:
-# `gh(){ bash; }; gh <<'E'` and `cat(){ bash; }; gh ... "$(cat <<'E' ...)"` both read the heredoc into a
-# shell (#75 reviews 7 and 8). So build the check from the list of names it trusts -- adding a third
-# name to TRUSTED would otherwise reopen this -- and cover the three spellings that bind one.
-TRUSTED = ("gh", "cat")
-REDEFINES = re.compile(r"\b(?:%s)\s*\(\s*\)|\bfunction\s+(?:%s)\b|\balias\s+(?:%s)="
-                       % ((("|".join(TRUSTED)),) * 3))
-
-
 def body_is_ghs(cmd, intro):
-    """Does the body introduced at `intro` belong to a gh command?
+    """Does the body introduced at `intro` belong to a gh command, and is that gh the real one?
 
     The simple command the `<<` or the --body flag sits in has to be gh. One step outward is allowed:
     `--body "$(cat <<'EOT' ... EOT)"` is how a review with a long body is usually written, and a bare
     `cat` reading a heredoc runs nothing -- it copies the text out -- so the body is still gh's. Any
-    other command there keeps its own body: `"$(bash <<'E' ... E)"` runs what the heredoc holds."""
+    other command there keeps its own body: `"$(bash <<'E' ... E)"` runs what the heredoc holds.
+
+    And that gh has to be the *first* command, with nothing run before it. `gh` is a name, and anything
+    the shell runs first can give the name to something else: a function, an alias, `hash -p /bin/bash
+    gh`, `export PATH=/tmp/evil`. Earlier heads here enumerated those spellings and kept missing one
+    (#75 reviews 7, 8, 9) -- and a PATH export is not a rebinding at all, so no list of rebindings was
+    ever going to cover it. Nothing before gh covers the whole family at once.
+
+    The cost, taken deliberately: a review chained after another command, `cd /tmp && gh pr comment
+    ... "$(cat <<'E'`, stops being cut, so a body of it that names an owner-only command is refused.
+    Run the gh on its own and it passes. One hole is left either way -- a gh planted on PATH by some
+    earlier, separate Bash call -- and no guard that reads one command's text can see that."""
     i = intro
     while True:
         s = segment_start(cmd, i)
         seg = cmd[s:]
         if re.match(r"\s*gh\s", seg):
-            return True
+            return cmd[:s].strip() == ""
         # the cat has to be bare and the line has to end there: `cat <<'E' | bash` emits the heredoc
         # into a shell, and `cat <<'E' > /tmp/x; bash /tmp/x` runs it from the file (#75 review)
         if s >= 2 and re.match(r"\s*cat\s*<<-?\s*['\"]?\w+['\"]?[ \t]*\n", seg):
@@ -204,8 +206,7 @@ def outside_body(cmd):
     starts with gh, but that heredoc feeds bash, so cutting it would take a real invocation out. Asking
     whether the whole remainder looks like one gh command needs a complete list of separators, and the
     list was never complete -- a newline, a lone `&` and `<(` all got through it. So ask the question
-    that was meant instead: whose body is this (body_is_ghs)? A review chained to other commands then
-    still cuts, since only the body goes."""
+    that was meant instead: whose body is this, and is that gh the real one (body_is_ghs)?"""
     found = body_span(cmd)
     if not found:
         return cmd
@@ -214,10 +215,7 @@ def outside_body(cmd):
         return cmd
     if not body_is_ghs(cmd, intro):
         return cmd
-    rest = cmd[:start] + cmd[end:]
-    # the gh or cat reading this body may be whatever the command around it just made them. Asked of
-    # `rest`, not of cmd: a body that merely quotes `gh() { bash; }` is text the shell never runs.
-    return cmd if REDEFINES.search(rest) else rest
+    return cmd[:start] + cmd[end:]
 
 
 def bash_body(cmd):
