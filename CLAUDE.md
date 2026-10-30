@@ -9,7 +9,7 @@ enforce a part of them. So a change here changes how sessions elsewhere behave.
 ## Two things are different here
 
 **A rule change reaches desktop sessions by itself and cloud sessions only when Ed re-pastes.**
-`~/.claude/CLAUDE.md:3` is an `@` import of `rules/account-instructions.md` *in this checkout*, so a
+Ed's `~/.claude/CLAUDE.md` `@`-imports `rules/account-instructions.md` *from this checkout*, so a
 desktop session reads the merged file at its next start, by the same `SessionStart` pull described
 for hooks below. Cloud sessions read the text from his Claude account settings, which nothing here
 writes to. So merging a rule change makes desktop strict and leaves cloud lax until he pastes, and
@@ -19,9 +19,10 @@ that a re-paste is owed, and the session that merged it tells him — batched, n
 **A hook change reaches every session on its own, desktop and cloud alike**, and never by a
 re-paste. Both places pull this repo at session start: `~/.claude/settings.json` on the desktop runs
 the hooks out of this working checkout by absolute path, and the `SessionStart` hook that
-`scripts/cloud-setup.sh` writes does the same pull against its `~/.claude/playbook` clone. So a merged hook change is live at
-the next session start in both. There is no staging, so a broken `claude/hooks/guard.py` blocks work
-in every repo at once. That is why the suites exist and why CI runs them (#88).
+`scripts/cloud-setup.sh` writes does the same pull against its `~/.claude/playbook` clone. So a
+merged hook change is live at the next session start in both. There is no staging, so a broken
+`claude/hooks/guard.py` blocks work in every repo at once. That is why the suites exist and why CI
+runs them (#88).
 
 Two ways a session can still be running an old hook, and neither says so:
 
@@ -63,10 +64,13 @@ it through.
 `repo_pattern` reads the line with `re.search` under `re.M`, and the two together are not what you
 would guess. `re.M` means the line need not be the first line of the file at all, which is why
 nothing enforces the convention. `re.search` returns the *leftmost* match, so of two `Pattern:`
-lines the earlier one wins outright: appending a second below this one changes nothing, and getting
-one in *above* it silently decides the pattern for every repo check. Probed both ways at `67a2681`.
-So the thing to guard when reviewing an edit to this file is anything inserted before line 1 — a
-title, a banner, a front-matter block — not a stray line further down.
+lines the earlier one wins outright: appending a second below this one changes nothing, and an
+earlier one silently decides the pattern for every repo check.
+
+So what to look for when reviewing an edit here is a second `Pattern:` line above the real one —
+nothing else. Probed: a banner above line 1 reads `('peer-review', 'lead')` unchanged, and so does
+a plain front-matter block; only front matter that itself carries a `Pattern:` line takes over. The
+hazard is the duplicate line, wherever it sits, not the insertion.
 
 ## Tests
 
