@@ -100,19 +100,21 @@ HEREDOC = r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\s*(\n|$)"
 
 
 def body_span(cmd):
-    """Where a body sits in cmd: (start, end, literal) for a heredoc's text or a --body/-b value, else None.
+    """Where a body sits in cmd: (intro, start, end, inert) for a heredoc's text or a --body/-b value, else None.
 
     bash_body returns that text; this returns its place, so a caller can cut it out by index instead of
     by value. Cutting by value removed every copy, which took a real invocation out along with the body
     that quoted it (#73 review).
+
+    `intro` is where the thing that introduces the body starts -- the `<<` or the flag -- so a caller can
+    ask which simple command the body belongs to. `start`/`end` bound the body text itself.
 
     `inert` says the shell will not run anything inside the body: a quoted heredoc tag, a single-quoted
     value or a $'' one. A review body is full of backticks, so this is what keeps markdown cuttable."""
     m = re.search(HEREDOC, cmd, re.S)
     if m:
         quoted_tag = re.match(r"<<-?\s*['\"]", m.group(0)) is not None
-        return m.span(2) + (quoted_tag,)
-    # a double-quoted value may hold \" ; a single-quoted one can't hold an escape at all
+        return (m.start(),) + m.span(2) + (quoted_tag,)
     # a double-quoted value may hold \" ; $'...' and a single-quoted one can't hold an escape.
     # gh takes the last --body, so the last match is the body that will be sent.
     last = None
@@ -121,38 +123,87 @@ def body_span(cmd):
         last = m
     if last:
         i = next(i for i in (1, 2, 3, 4) if last.group(i) is not None)
-        return last.span(i) + (i in (1, 2),)   # $'...' and '...' are literal; "..." and bare are not
+        # $'...' and '...' are inert; "..." and bare are not
+        return (last.start(), last.start(i), last.end(i), i in (1, 2))
     return None
 
 
+def segment_start(cmd, i):
+    """Index where the simple command around position i begins: just past the last separator before i
+    that the shell would act on, skipping separators inside quotes.
+
+    A command substitution starts a command even inside double quotes, so `$(` and a backtick count
+    there too: the text after them is a command of its own, whatever quotes surround it."""
+    pos, quote, start = 0, None, 0
+    while pos < i:
+        two = cmd[pos:pos + 2]
+        if quote:
+            if quote == '"':
+                if cmd[pos] == "\\":
+                    pos += 2
+                    continue
+                if two == "$(" or cmd[pos] == "`":
+                    pos += len(two) if two == "$(" else 1
+                    start = pos
+                    continue
+            if cmd[pos] == quote:
+                quote = None
+            pos += 1
+        elif cmd[pos] in "'\"":
+            quote = cmd[pos]
+            pos += 1
+        elif cmd[pos] in "&|;\n()`" or two == "$(":
+            pos += 2 if two in ("&&", "||", "$(") else 1
+            start = pos
+        else:
+            pos += 1
+    return start
+
+
+def body_is_ghs(cmd, intro):
+    """Does the body introduced at `intro` belong to a gh command?
+
+    The simple command the `<<` or the --body flag sits in has to be gh. One step outward is allowed:
+    `--body "$(cat <<'EOT' ... EOT)"` is how a review with a long body is usually written, and a bare
+    `cat` reading a heredoc runs nothing -- it copies the text out -- so the body is still gh's. Any
+    other command there keeps its own body: `"$(bash <<'E' ... E)"` runs what the heredoc holds."""
+    i = intro
+    while True:
+        s = segment_start(cmd, i)
+        seg = cmd[s:]
+        if re.match(r"\s*gh\s", seg):
+            return True
+        if s >= 2 and re.match(r"\s*cat\s+<<", seg):
+            i = s - (2 if cmd[s - 2:s] == "$(" else 1)
+            continue
+        return False
+
+
 def outside_body(cmd):
-    """cmd without its body, when cmd is one gh command carrying a body; cmd unchanged otherwise.
+    """cmd without the body of a gh command in it; cmd unchanged when there is no such body.
 
     Two conditions, both learned from breaking earlier versions of this (#73 review):
-
-    What is left after the cut must *start* with gh. Finding gh anywhere in the remainder is not
-    enough -- `bash <<'A'` whose body runs an owner-only command, with a gh comment chained after it,
-    would have its real invocation cut out and pass.
 
     Only a body the shell cannot execute is cut: a single-quoted or $'' value, or a heredoc with a
     quoted delimiter. A double-quoted or bare value is left alone, because $(...), a backtick and
     ${...} all run, so the invocation can sit inside the very text we would remove. Checking for those
     three spellings instead would be a blacklist; being unable to run anything is the property we want.
 
-    And the remainder must be one gh command, not a chain starting with one: `gh pr list && bash <<'E'`
-    begins with gh, and the first heredoc in it belongs to bash, so cutting that body would have taken
-    the invocation with it. A review chained to another command is therefore not cut, and stays denied
-    if it names an owner-only command -- the safe direction, and rare."""
+    And the body has to be gh's. `gh pr comment 1 --body hi` on one line and `bash <<'E'` on the next
+    starts with gh, but that heredoc feeds bash, so cutting it would take a real invocation out. Asking
+    whether the whole remainder looks like one gh command needs a complete list of separators, and the
+    list was never complete -- a newline, a lone `&` and `<(` all got through it. So ask the question
+    that was meant instead: whose body is this (body_is_ghs)? A review chained to other commands then
+    still cuts, since only the body goes."""
     found = body_span(cmd)
     if not found:
         return cmd
-    start, end, inert = found
+    intro, start, end, inert = found
     if not inert:
         return cmd
-    rest = cmd[:start] + cmd[end:]
-    if re.search(r"&&|\|\||[;|]", rest):
+    if not body_is_ghs(cmd, intro):
         return cmd
-    return rest if re.match(r"\s*gh\s", rest) else cmd
+    return cmd[:start] + cmd[end:]
 
 
 def bash_body(cmd):
