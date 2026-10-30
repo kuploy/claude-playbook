@@ -3,9 +3,13 @@
 
     python3 -I tests/test_console_post.py [path/to/console-post.sh]
 
-Exits 0 when every case lands where it should, 1 otherwise. Nothing leaves this machine: the
-script posts to an http.server listener this file starts on a free loopback port, and the only
-other host any case names is refused before curl runs.
+Exits 0 when every case lands where it should, 1 otherwise. No request leaves this machine: the
+script posts to an http.server listener this file starts on a free loopback port, and every other
+host a case names is refused before curl runs. One qualifier, because the first draft of this
+sentence promised more than it delivers (console-reviewer on #89): while scoring a *broken* head,
+`userinfo-elsewhere` does reach curl, which resolves `exfil.invalid` and fails with `curl: (6)`.
+A DNS query goes out. Nothing follows it -- `.invalid` never resolves, by RFC 2606 -- and no
+bearer is ever sent to it, but a machine that logs DNS will see the name.
 
 To score any head, the way #87's reviews were argued:
 
@@ -217,6 +221,16 @@ def run_all(path):
         srv.shutdown()
         os.unlink(good.name)
         os.unlink(bad.name)
+
+    # The production arm is read and not run, so no case above would notice CONSOLE= being edited
+    # to another host -- the one exfiltration path these cases leave open (console-reviewer on #89).
+    # This is the cheap close: the literal has to be in the script, spelled exactly.
+    pinned = 'CONSOLE="https://claude-agent-console.vercel.app"'
+    with open(path) as f:
+        has_pin = any(line.strip() == pinned for line in f)
+    failing += 0 if has_pin else 1
+    rows.append(("-", "console-pinned", "literal", "yes" if has_pin else "no", 0, False, has_pin,
+                 "" if has_pin else "expected a line reading exactly %s" % pinned))
 
     print("%-5s %-20s %-5s %-4s %-5s %-6s %s" % ("sh", "case", "want", "got", "hits", "leak", "output"))
     for shell, cid, want, code, hits, leaked, ok, out in rows:
