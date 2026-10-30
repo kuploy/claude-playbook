@@ -81,7 +81,7 @@ The playbook is the same for everyone. What is yours lives in one file, `config.
 
 - **`config_repo`**: this repo's own name. Cloud sessions with a token use it to read the latest settings ([below](#when-your-settings-change)).
 - **`repos`**: the repos `scripts/copy-by-hand.sh` copies files into.
-- **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command. With `only_in`, the command counts only when that text is in the folder name or the command. Setting the variable for the owner's session: [enforcement.md](enforcement.md#the-owner-only-switch).
+- **`owner_only`**: commands only one session may run. The guard refuses them in every session except one that has the `allow_env` variable set to `1`. `match` is a regular expression on the command, with a `gh` command's `--body` value or heredoc taken out first, so a PR or review that *names* an owner-only command still posts. With `only_in`, the command counts only when that text is in the folder name or the rest of the command. Setting the variable for the owner's session: [enforcement.md](enforcement.md#the-owner-only-switch).
 - **`epic_home`**: the repo where your epics live. The new-branch check looks there for an issue the current repo doesn't have.
 - **`plain_language`**: what the reply check flags in a chat reply (#48). `words` match whole words, plurals too. `phrases` are regular expressions. `max_words` is the longest sentence allowed. A hit sends the reply back once, with the lines quoted. Code, tables and link addresses are not checked. No `plain_language`: no check. A part of the wrong type is skipped.
 

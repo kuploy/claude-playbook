@@ -221,7 +221,8 @@ EPIC_HOME = CONFIG.get("epic_home") or ""   # where epics live; empty: only the 
 
 def owner_only(cmd, cwd):
     """The deny message when cmd matches one of the config's owner-only commands and this session isn't exempt.
-    A command's `match` is a regex on the command text; `only_in`, if set, must appear in the folder or the command.
+    A command's `match` is a regex on the command text with any `gh` body taken out; `only_in`, if set, must
+    appear in the folder or in what is left of the command.
     A field of the wrong type fails closed: no exemption, no folder limit, the default message. notes.py reports it."""
     rule = CONFIG.get("owner_only")
     if not isinstance(rule, dict) or not isinstance(rule.get("commands"), list):
@@ -229,6 +230,9 @@ def owner_only(cmd, cwd):
     env = rule.get("allow_env")
     if isinstance(env, str) and env and os.environ.get(env) == "1":
         return None
+    body = bash_body(cmd)
+    if body:
+        cmd = cmd.replace(body, "")   # a review that names an owner-only command is not running it (#73)
     msg = rule.get("message")
     for c in rule["commands"]:
         if not isinstance(c, dict):
