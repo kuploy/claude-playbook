@@ -16,8 +16,13 @@ The warning rides a Stop hook because that is the only place a message reaches t
 hook's stderr goes to the user, on `manual` only, and its `systemMessage` is
 discarded (hooks reference, PreCompact). Context size comes from the transcript's last reply: the reference
 adds up input, cache-read, cache-creation and output tokens for `context_tokens`, and so does this. The window
-is read from CLAUDE_CODE_AUTO_COMPACT_WINDOW, then from the settings files; a window saved per model with
-/autocompact wins over both and can't be read, so the message says when the number was assumed.
+is read from CLAUDE_CODE_AUTO_COMPACT_WINDOW, then from the settings files. When none of them sets it, the
+hook says nothing at all, because then Claude Code's own default decides, and that default is the model's
+context limit: about 967K on Sonnet 5 and the other 1M models, 200K on Sonnet 4.6 and Opus 4.6, and whatever
+is assumed for a model ID it doesn't recognise (model-config, "Default auto-compact thresholds"). A guess
+would nag from 160K in a session with 800K to spare. A window saved per model with /autocompact also wins
+over both and can't be read, so a number that is set can still be wrong; being set is the signal that
+somebody chose it.
 Never traps a session: it says nothing when Claude Code is already continuing from a Stop block, and at most
 once every COOLDOWN_MINUTES.
 
@@ -44,7 +49,6 @@ import urllib.request
 LIMIT = 4000
 TOKEN_ENV = "PLAYBOOK_CONFIG_TOKEN"
 WINDOW_ENV = "CLAUDE_CODE_AUTO_COMPACT_WINDOW"
-WINDOW_ASSUMED = 200_000   # the hooks reference's own example, used when nothing readable says otherwise
 WARN_AT = 0.8              # share of the window at which the Stop hook asks for a rewrite
 STALE_MINUTES = 20
 COOLDOWN_MINUTES = 20
@@ -160,10 +164,10 @@ def how_old(minutes):
 
 
 def compact_window():
-    """(tokens a compaction fires at, whether that number was read rather than assumed)."""
+    """The tokens a compaction fires at, or None when nothing readable sets it."""
     env = (os.environ.get(WINDOW_ENV) or "").strip()
     if env.isdigit() and int(env) > 0:
-        return int(env), True
+        return int(env)
     for path in (".claude/settings.local.json", ".claude/settings.json",
                  os.path.expanduser("~/.claude/settings.json")):
         try:
@@ -172,8 +176,8 @@ def compact_window():
         except (OSError, ValueError, AttributeError):
             continue
         if type(window) is int and window > 0:   # not bool, which is an int
-            return window, True
-    return WINDOW_ASSUMED, False
+            return window
+    return None
 
 
 def usage_in(lines):
@@ -238,8 +242,8 @@ def stop():
     used = context_tokens(data.get("transcript_path"))
     if used is None:
         return   # no reply to measure yet
-    window, read = compact_window()
-    if used < window * WARN_AT:
+    window = compact_window()
+    if window is None or used < window * WARN_AT:
         return
     try:
         os.makedirs(os.path.dirname(stamp), exist_ok=True)
@@ -247,10 +251,9 @@ def stop():
     except OSError:
         return   # with no stamp it would ask every turn
     held = "is missing" if age is None else how_old(age)
-    assumed = "" if read else f" (nothing here sets the window, so {window:,} is an assumption)"
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": (
         f"A compaction is close: this session re-sends about {used:,} tokens and one fires at "
-        f"{window:,}{assumed}. Your notes file {held}. Write {path} now, then stop. "
+        f"{window:,}. Your notes file {held}. Write {path} now, then stop. "
         "Overwrite it with what is true now, under 30 lines: open PRs and their heads, who owes what, "
         "decisions with their dates, what comes next. Leave history out. A compaction keeps this file and "
         "drops the rest of the conversation, and only its last 4,000 characters are shown afterwards, "

@@ -174,7 +174,9 @@ A compaction gives no warning of its own, so #59 adds two more runs of `notes.py
 
 **At the end of a turn** (`--stop`, a Stop hook). The hook works out how much the session re-sends — the last reply's input, cache and output tokens, from the transcript — and compares it with the window a compaction fires at. Past 80% of that window, if the notes file is missing or more than 20 minutes old, the session is told to rewrite it before it stops, with both numbers in the message. It asks at most once every 20 minutes, and never while the session is already continuing from a Stop block, so a session can't be trapped.
 
-The window is read from `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, then from `.claude/settings.json` and `~/.claude/settings.json`. A window you saved for one model with `/autocompact` beats both and can't be read, so when nothing readable sets it the message says the number is an assumption.
+The window is read from `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, then from `.claude/settings.json` and `~/.claude/settings.json`. Your settings and `cloud-setup.sh` both set 250000, so it is there in practice.
+
+**If none of them sets it, the hook says nothing.** It does not guess. With no setting, Claude Code compacts at the model's own limit, and that is about 967K tokens on Sonnet 5 and the other 1M models, 200K on Sonnet 4.6 and Opus 4.6, and whatever it assumes for a model ID it doesn't recognise. A hook that assumed 200K would warn from 160K on, every 20 minutes, in a session with 800K still to spare. Being set is the signal that somebody chose the number. A window you saved for one model with `/autocompact` beats the settings file and can't be read, so even a number that is set can be wrong.
 
 **Just before the compaction** (`--pre-compact`, a PreCompact hook). It writes one line at the end of the notes file saying a compaction started and when. The SessionStart that follows shows that line, so the session knows which notes predate the conversation it is reading.
 
