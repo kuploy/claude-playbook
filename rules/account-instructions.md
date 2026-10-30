@@ -104,7 +104,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 - A PR that only copies files from the playbook needs one check, not two reviews: the file's hash matches the source. Any difference, and the full rule applies.
 - When you open a PR, write "Review requested from:" in its body with two reviewers who are not you and not the repo's writer. Find them with list_sessions (skip archived ones). If fewer than two exist, ask me whether to spawn a short-lived reviewer session. Nudge each reviewer with one line and the PR link.
 - Keep a PR body to 15 lines: what changed, why, how you verified it, reviewers. Detail goes in commits or a linked file.
-- After you nudge reviewers, subscribe to the PR and end your turn. Don't poll, and don't nudge twice.
+- The author subscribes; reviewers don't. A desktop reviewer gets no GitHub events at all: `set_monitor` is refused for a non-author, and the queue stays empty even when a review lands (#32, comment 6525146678). So after each push the author posts "ready for review at `<sha>`" on the PR, sends each named reviewer one line pointing at it, then subscribes and ends its turn. A reviewer never waits for an event. Don't poll, and don't nudge twice.
   Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR. It missed two plain-comment
   reviews on a docs PR (24 Oct), so don't count on it to wake you for a review. If you
   can't subscribe, tell me you're waiting and on whom.
@@ -114,10 +114,13 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 - At each check-in, also read the status of every session you spawned (`get_session`: `status_bucket`, and `post_turn_summary.needs_action` for what it asks; if that's empty, its last message via `list_events`). If one is blocked, tell me which one and what it asks. A session that waits for my word can't be unblocked by a peer message, unless its spawn brief says the lead speaks for me.
 - Never hold a finished review. Post it on the PR as a GitHub review with event COMMENT when your tools allow (desktop Autofix may relay those; plain comments it missed), then message the author one line and the link. Always, even if the author says it is subscribed (a desktop author: the PR comment is enough).
 - A send that returns `delivered` is not proof. Confirm the message shows in the target's transcript (`list_events`) in the same turn, or get its reply. If it isn't there, send again and check again; if still nothing, tell Ed. Not for a desktop session: see below. A desktop session queues a cloud message but takes no turn until Ed types, so give work that must move to a cloud session (2026-10-25). After 14 sends to desktop sessions since Ed last typed in your session, further sends pause until he types (2026-10-26). So for a desktop session the PR comment is what counts, and when you report to me, name the desktop sessions holding work so I know which to open.
+- Read before you send, and name what you are answering. Before every message to a peer, read the PR or issue it is about, and name the commit or the comment you are answering. A message written from memory crosses the review it answers, and a pick named from an old brief is often already built.
+- A message to a peer is one line: "new commit `<sha>`, please review", or "review posted on `<sha>`". Findings, review ids and follow-ups go on the PR, never in the message. The send cap is for telling a peer something changed, not for telling it what you found.
 - Reviews live on the PR. After posting, your chat output is the verdict and the PR link only. No recap of what you did.
 - Only the session that owns a thread reports to me. Not every reviewer, every round. Report in 3 lines: status, what needs me, the link. Don't paste a review back to me.
 - Don't re-verify a peer's claim unless it's load-bearing and cheap.
 - "Me" means Ed, not other sessions. Message me only when something is done, blocked or wrong, not per commit. Say which work comes first.
+- A pick counts only when it is on the issue: the `agent:<role>` label plus a comment saying what the session is being asked for. A pick that arrives only as a session message doesn't count, and the session ignores it. Work the issues in priority-label order, not in the order a handoff brief listed them. Before you name an issue to anyone, check its claims against `main`.
 - Keep the cheap, high-value checks: mutation testing, running a proposal before recommending it, checking premises at source.
 
 ## Sessions and quota
