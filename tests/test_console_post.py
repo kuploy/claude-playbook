@@ -39,7 +39,7 @@ the script checks the secret's alphabet before sending, and `secret-newline-url`
 says why. If the console ever rotates to `openssl rand -base64`, that alphabet grows and these
 three cases change deliberately rather than get deleted.
 """
-import http.server, json, os, shutil, subprocess, sys, tempfile, threading
+import http.server, json, os, re, shutil, subprocess, sys, tempfile, threading
 
 USAGE = "usage: python3 -I tests/test_console_post.py [path/to/console-post.sh | --rev <sha>]"
 SCRIPT = os.path.join("scripts", "console-post.sh")
@@ -225,12 +225,29 @@ def run_all(path):
     # The production arm is read and not run, so no case above would notice CONSOLE= being edited
     # to another host -- the one exfiltration path these cases leave open (console-reviewer on #89).
     # This is the cheap close: the literal has to be in the script, spelled exactly.
+    # Presence is not enough, and the first draft of this check only asked for presence: a second
+    # CONSOLE= line after it left the suite green while `origin` resolved to the attacker's host,
+    # because the last assignment is the one the shell uses (console-writer on #89). So: exactly
+    # one assignment, and it is this line. Quoting counts -- re-quoting the same URL fails this
+    # case with no change in behaviour, which is the price of reading source text instead of
+    # running it, and the message below says so rather than leaving someone hunting.
     pinned = 'CONSOLE="https://claude-agent-console.vercel.app"'
+    assign = re.compile(r"^\s*(?:export\s+|readonly\s+)?CONSOLE=")
     with open(path) as f:
-        has_pin = any(line.strip() == pinned for line in f)
+        lines = [l.rstrip("\n") for l in f]
+    # Not `found`: that name holds the shells, and shadowing it here printed the CONSOLE= line
+    # where the summary says which shells ran.
+    assigns = [l for l in lines if not l.lstrip().startswith("#") and assign.match(l)]
+    has_pin = len(assigns) == 1 and assigns[0].strip() == pinned
+    why = ""
+    if len(assigns) != 1:
+        why = "expected exactly one CONSOLE= assignment, found %d: %s" % (
+            len(assigns), " | ".join(l.strip() for l in assigns) or "none")
+    elif not has_pin:
+        why = "the one CONSOLE= assignment must read exactly %s (quoting included, so re-quoting " \
+              "the same URL fails here with no change in behaviour)" % pinned
     failing += 0 if has_pin else 1
-    rows.append(("-", "console-pinned", "literal", "yes" if has_pin else "no", 0, False, has_pin,
-                 "" if has_pin else "expected a line reading exactly %s" % pinned))
+    rows.append(("-", "console-pinned", "1 line", "yes" if has_pin else "no", 0, False, has_pin, why))
 
     print("%-5s %-20s %-5s %-4s %-5s %-6s %s" % ("sh", "case", "want", "got", "hits", "leak", "output"))
     for shell, cid, want, code, hits, leaked, ok, out in rows:
