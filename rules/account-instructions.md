@@ -104,6 +104,7 @@ This: "The AI reads the plan back to you in its own words. It could get it wrong
 - A PR that only copies files from the playbook needs one check, not two reviews: the file's hash matches the source. Any difference, and the full rule applies.
 - When you open a PR, write "Review requested from:" in its body with two reviewers who are not you and not the repo's writer. Find them with list_sessions (skip archived ones). If fewer than two exist, ask me whether to spawn a short-lived reviewer session.
 - Keep a PR body to 15 lines: what changed, why, how you verified it, reviewers. Detail goes in commits or a linked file.
+- Closing more than one issue needs the keyword before each number: "Closes #74, closes #77, closes #79". "Closes #74, #77, #79" closes only #74, and the rest stay open with the work merged (#81, 2026-10-30).
 - The author subscribes; reviewers don't. A desktop reviewer can't arrange its own GitHub events: `set_monitor` is refused for a non-author, and the queue stays empty even when a review lands (#32, comment 6525146678). The tool refuses it; only I can turn Auto-fix on by hand in the app for a PR the session didn't open. So after each push the author posts "ready for review at `<sha>`" on the PR, sends each named reviewer one line and the PR link, then subscribes and ends its turn. A reviewer never waits for an event. Don't poll, and don't nudge twice.
   Cloud: `subscribe_pr_activity`. Desktop: Autofix on the bound PR. It missed two plain-comment
   reviews on a docs PR (24 Oct), so don't count on it to wake you for a review. If you
