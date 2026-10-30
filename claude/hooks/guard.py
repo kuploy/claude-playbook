@@ -173,7 +173,9 @@ def body_is_ghs(cmd, intro):
         seg = cmd[s:]
         if re.match(r"\s*gh\s", seg):
             return True
-        if s >= 2 and re.match(r"\s*cat\s+<<", seg):
+        # the cat has to be bare and the line has to end there: `cat <<'E' | bash` emits the heredoc
+        # into a shell, and `cat <<'E' > /tmp/x; bash /tmp/x` runs it from the file (#75 review)
+        if s >= 2 and re.match(r"\s*cat\s+<<-?\s*['\"]?\w+['\"]?[ \t]*\n", seg):
             i = s - (2 if cmd[s - 2:s] == "$(" else 1)
             continue
         return False
