@@ -15,7 +15,9 @@
 #
 # The host is pinned here, not taken from the environment: an allowed script that posts
 # wherever CONSOLE_URL says is an exfiltration tool with a nicer name. CONSOLE_URL may only
-# name the console below, or a 127.0.0.1 port for the tests.
+# name the console below, or a 127.0.0.1 or localhost port, which is how a harness points it at a local
+# listener. The whole string after that prefix must be the port: a tail-of-the-string check accepts
+# http://127.0.0.1:1@evil.test:80, where curl reads 127.0.0.1:1 as user:password and requests evil.test.
 #
 # Needs INGEST_SECRET in the environment. It goes to curl on stdin, never in an argument, so it
 # stays out of `ps` and out of anything this script prints. Its characters are checked first:
@@ -45,8 +47,10 @@ esac
 python3 -m json.tool "$file" >/dev/null 2>&1 || die "not valid JSON: $file" 2
 
 [ -n "${INGEST_SECRET:-}" ] || die "INGEST_SECRET is not set in this environment" 3
-# A bearer token is this alphabet. Anything else is either not the secret or an attempt to add a
-# second line to curl's config, so refuse it rather than sending a mangled header.
+# A bearer token is this alphabet, which covers the hex the console documents (openssl rand -hex 32,
+# claude-agent-console/docs/setup.md:18). Anything else is either not the secret or an attempt to add a
+# second line to curl's config, so refuse it rather than sending a mangled header. A rotation to
+# rand -base64 would need "+", "/" and "=" added here, and each of those is safe in a quoted value.
 case ${INGEST_SECRET} in
   *[!A-Za-z0-9_-]*) die "INGEST_SECRET holds characters a bearer token cannot: refusing to send it" 3 ;;
 esac
@@ -56,10 +60,18 @@ origin="${CONSOLE_URL:-$CONSOLE}"
 origin="${origin%/}"
 case $origin in
   "$CONSOLE") ;;
-  http://127.0.0.1:* | http://localhost:*)
-    port="${origin##*:}"
-    case $port in "" | *[!0-9]*) die "CONSOLE_URL may name $CONSOLE or a 127.0.0.1 port, not $origin" 2 ;; esac ;;
-  *) die "CONSOLE_URL may name $CONSOLE or a 127.0.0.1 port, not $origin" 2 ;;
+  *)
+    # The whole string after the prefix must be the port. Don't read the tail after the last colon:
+    # http://127.0.0.1:1@evil.test:80 ends in digits, and curl reads 127.0.0.1:1 as user:password and
+    # requests evil.test (console-reviewer, comment 6529138633).
+    rest=
+    case $origin in
+      http://127.0.0.1:*) rest="${origin#http://127.0.0.1:}" ;;
+      http://localhost:*) rest="${origin#http://localhost:}" ;;
+    esac
+    case $rest in
+      "" | *[!0-9]*) die "CONSOLE_URL may name $CONSOLE or a 127.0.0.1 port, not $origin" 2 ;;
+    esac ;;
 esac
 url="$origin/api/ingest/$path"
 
