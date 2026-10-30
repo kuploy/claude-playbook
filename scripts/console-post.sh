@@ -13,12 +13,20 @@
 # one plain segment and nothing else: no scheme, no host, no "..", no slash. Otherwise the
 # rule would hand out a general-purpose POST tool.
 #
-# Needs CONSOLE_URL (default below, as claude/hooks/signal.py uses) and INGEST_SECRET in the
-# environment. The secret is passed to curl on stdin, never in an argument, so it stays out
-# of `ps` and out of anything this script prints.
+# The host is pinned here, not taken from the environment: an allowed script that posts
+# wherever CONSOLE_URL says is an exfiltration tool with a nicer name. CONSOLE_URL may only
+# name the console below, or a 127.0.0.1 port for the tests.
 #
-# Exit: 0 when the console answers 2xx, 2 on a usage or input error, 3 with no secret,
-# 4 when the request fails or the console answers anything else.
+# Needs INGEST_SECRET in the environment. It goes to curl on stdin, never in an argument, so it
+# stays out of `ps` and out of anything this script prints. Its characters are checked first:
+# curl's config parser reads backslashes and quotes inside a quoted value, and a newline in the
+# value adds a second config line, which POSTs the secret to whatever url that line names.
+#
+# Cloud only: scripts/cloud-setup.sh adds the allow rule, and claude/settings.json (the desktop
+# template) has no permissions key, so a desktop session is asked as usual.
+#
+# Exit: 0 when the console answers 2xx, 2 on a usage or input error, 3 on a missing or
+# unusable secret, 4 when the request fails or the console answers anything else.
 set -u
 
 die() { echo "console-post: $1" >&2; exit "$2"; }
@@ -37,9 +45,23 @@ esac
 python3 -m json.tool "$file" >/dev/null 2>&1 || die "not valid JSON: $file" 2
 
 [ -n "${INGEST_SECRET:-}" ] || die "INGEST_SECRET is not set in this environment" 3
+# A bearer token is this alphabet. Anything else is either not the secret or an attempt to add a
+# second line to curl's config, so refuse it rather than sending a mangled header.
+case ${INGEST_SECRET} in
+  *[!A-Za-z0-9_-]*) die "INGEST_SECRET holds characters a bearer token cannot: refusing to send it" 3 ;;
+esac
 
-url="${CONSOLE_URL:-https://claude-agent-console.vercel.app}"
-url="${url%/}/api/ingest/$path"
+CONSOLE="https://claude-agent-console.vercel.app"
+origin="${CONSOLE_URL:-$CONSOLE}"
+origin="${origin%/}"
+case $origin in
+  "$CONSOLE") ;;
+  http://127.0.0.1:* | http://localhost:*)
+    port="${origin##*:}"
+    case $port in "" | *[!0-9]*) die "CONSOLE_URL may name $CONSOLE or a 127.0.0.1 port, not $origin" 2 ;; esac ;;
+  *) die "CONSOLE_URL may name $CONSOLE or a 127.0.0.1 port, not $origin" 2 ;;
+esac
+url="$origin/api/ingest/$path"
 
 body=$(mktemp) || die "cannot write a temp file" 4
 trap 'rm -f "$body"' EXIT INT TERM
