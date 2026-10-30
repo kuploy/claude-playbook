@@ -69,10 +69,17 @@ earlier one silently decides the pattern for every check against *this* repo. On
 `repo_pattern` is called with the repo being checked and fetches that repo's own `CLAUDE.md`, so a
 bad line here cannot reach the console or any other repo.
 
-So what to look for when reviewing an edit here is a second `Pattern:` line above the real one —
-nothing else. Probed: a banner above line 1 reads `('peer-review', 'lead')` unchanged, and so does
-a plain front-matter block; only front matter that itself carries a `Pattern:` line takes over. The
-hazard is the duplicate line, wherever it sits, not the insertion.
+There is a third outcome, and it is the one a typo makes. `repo_pattern` checks the name it found
+against `PATTERNS` and returns `None` when it is not there; it does not go looking for a later line
+that is valid. So `Pattern: peer-reveiw` in this one line, with no duplicate anywhere, leaves the
+repo with no pattern at all and the caller drops to the plain one-PR rule. Nothing says so. The
+misspelling just reads as "no `Pattern:` line".
+
+So two things to check when reviewing an edit here: that this file's `Pattern:` line is spelled
+exactly, and that no second one sits above it. Nothing else breaks it. Probed all three outcomes. A
+banner above line 1 reads `('peer-review', 'lead')` unchanged, and so does a plain front-matter
+block; only front matter that itself carries a `Pattern:` line takes over. The hazard is the line's
+own spelling, or a duplicate earlier — not the insertion.
 
 ## Tests
 
