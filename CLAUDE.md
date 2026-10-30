@@ -65,7 +65,9 @@ it through.
 would guess. `re.M` means the line need not be the first line of the file at all, which is why
 nothing enforces the convention. `re.search` returns the *leftmost* match, so of two `Pattern:`
 lines the earlier one wins outright: appending a second below this one changes nothing, and an
-earlier one silently decides the pattern for every repo check.
+earlier one silently decides the pattern for every check against *this* repo. Only this one:
+`repo_pattern` is called with the repo being checked and fetches that repo's own `CLAUDE.md`, so a
+bad line here cannot reach the console or any other repo.
 
 So what to look for when reviewing an edit here is a second `Pattern:` line above the real one —
 nothing else. Probed: a banner above line 1 reads `('peer-review', 'lead')` unchanged, and so does
