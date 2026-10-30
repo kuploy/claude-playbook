@@ -1,0 +1,19 @@
+# Runs the hook tests on every PR and on main. The repo's first job that runs its own code:
+# `two-reviews` counts reviews and is synced to other repos (sync/two-reviews.yml), and `sync`
+# copies files out, so until now nothing here executed guard.py at all (#80).
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -I tests/test_guard.py
