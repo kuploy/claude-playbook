@@ -18,8 +18,8 @@ that a re-paste is owed, and the session that merged it tells him — batched, n
 
 **A hook change reaches every session on its own, desktop and cloud alike**, and never by a
 re-paste. Both places pull this repo at session start: `~/.claude/settings.json` on the desktop runs
-the hooks out of this working checkout by absolute path, and `scripts/cloud-setup.sh:42` installs the
-same `SessionStart` pull against its `~/.claude/playbook` clone. So a merged hook change is live at
+the hooks out of this working checkout by absolute path, and the `SessionStart` hook that
+`scripts/cloud-setup.sh` writes does the same pull against its `~/.claude/playbook` clone. So a merged hook change is live at
 the next session start in both. There is no staging, so a broken `claude/hooks/guard.py` blocks work
 in every repo at once. That is why the suites exist and why CI runs them (#88).
 
@@ -49,7 +49,7 @@ refused as having no role. Worse if one is already open — `role_of` falls back
 such a branch counts as a writer of its own and eats a slot nobody can see.
 
 **Why `peer-review` and not `lead-writer`.** `patterns/lead-writer.md` gives the lead no code on the
-repo, and `PATTERNS["lead-writer"]` is `(1, False)`, so `check_role:587` denies `feat/lead/<n>-slug`
+repo, and `PATTERNS["lead-writer"]` is `(1, False)`, so `check_role` denies `feat/lead/<n>-slug`
 outright. There is no separate writer session for this repo — the lead writes here, and did for #89
 and #95 — so `lead-writer` would lock out the only session that writes. `peer-review` is what this
 repo already does: one writer, two reviews before merge from sessions that aren't the writer. Ed
@@ -58,8 +58,15 @@ settled this on 2026-10-30, against the `lead-writer` he first named on #92.
 `lead = lead` reads oddly here, because `peer-review` calls the session that reports to Ed the
 *writer*, not the lead. The field names that role whatever the session's own role name is, and this
 one's is `lead` — so `feat/lead/<n>-slug` is the writer's branch on this repo, and `(1, True)` lets
-it through. Keep the line on the first line of this file by convention only: `repo_pattern:566`
-searches with `re.M`, so a second `Pattern:` anywhere below would silently win.
+it through.
+
+`repo_pattern` reads the line with `re.search` under `re.M`, and the two together are not what you
+would guess. `re.M` means the line need not be the first line of the file at all, which is why
+nothing enforces the convention. `re.search` returns the *leftmost* match, so of two `Pattern:`
+lines the earlier one wins outright: appending a second below this one changes nothing, and getting
+one in *above* it silently decides the pattern for every repo check. Probed both ways at `67a2681`.
+So the thing to guard when reviewing an edit to this file is anything inserted before line 1 — a
+title, a banner, a front-matter block — not a stray line further down.
 
 ## Tests
 
@@ -70,3 +77,9 @@ edit — adding the file is enough. Run them the way CI does:
 
 `-I` matters: these suites read scripts out of the repo, and without it an import picks up whatever
 sits in the current directory.
+
+## Citing the hooks
+
+This file names functions, not line numbers — `repo_pattern`, `check_role`, `ROLE_BRANCH`. Nothing
+tests `CLAUDE.md`, so a line number here is a claim no suite can keep true, and the next edit to
+`guard.py` moves it with nothing to notice. Grep for the name.
