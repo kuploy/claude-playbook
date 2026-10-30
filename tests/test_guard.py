@@ -23,9 +23,9 @@ ALLOWED a review that merely *names* an owner-only command goes through. That is
         PR was for. A guard that denies everything fails here, which is the point of these cases.
 
 The config is written by this file, not read from the machine, so the answer is the same in every
-session: one owner-only pattern and no `allow_env`, so nothing is exempt. The pattern is assembled
-from fragments because the installed guard reads the text of the command that writes this file and
-would refuse a literal (#76).
+session: two owner-only patterns and no `allow_env`, so nothing is exempt. They are assembled from
+fragments because the installed guard reads the text of the command that writes this file and would
+refuse a literal (#76).
 
 The expectations encode the design #75 settled on: a body is cut before matching only when it is
 inert (single-quoted, $'...', or a heredoc with a quoted delimiter), only when it belongs to a gh
@@ -35,9 +35,12 @@ change deliberately rather than delete.
 """
 import importlib.util, json, os, subprocess, sys, tempfile
 
+USAGE = "usage: python3 -I tests/test_guard.py [path/to/guard.py | --rev <sha>]"
 GUARD = os.path.join("claude", "hooks", "guard.py")
 REV = None
-if len(sys.argv) > 2 and sys.argv[1] == "--rev":
+if len(sys.argv) > 1 and sys.argv[1] == "--rev":
+    if len(sys.argv) < 3:
+        raise SystemExit(USAGE)
     REV = sys.argv[2]
 elif len(sys.argv) > 1:
     GUARD = sys.argv[1]
@@ -181,6 +184,14 @@ def load(path):
 
 def main():
     path = from_rev(REV) if REV else GUARD
+    try:
+        return run(path)
+    finally:
+        if REV:
+            os.unlink(path)
+
+
+def run(path):
     if not os.path.exists(path):
         print("no guard at %s -- pass its path as the first argument" % path)
         return 2
