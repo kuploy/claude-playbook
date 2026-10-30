@@ -96,9 +96,131 @@ def review_problem(body):
     return None
 
 
+HEREDOC = r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\s*(\n|$)"
+
+
+def body_span(cmd):
+    """Where a body sits in cmd: (intro, start, end, inert) for a heredoc's text or a --body/-b value, else None.
+
+    bash_body returns that text; this returns its place, so a caller can cut it out by index instead of
+    by value. Cutting by value removed every copy, which took a real invocation out along with the body
+    that quoted it (#73 review).
+
+    `intro` is where the thing that introduces the body starts -- the `<<` or the flag -- so a caller can
+    ask which simple command the body belongs to. `start`/`end` bound the body text itself.
+
+    `inert` says the shell will not run anything inside the body: a quoted heredoc tag, a single-quoted
+    value or a $'' one. A review body is full of backticks, so this is what keeps markdown cuttable."""
+    m = re.search(HEREDOC, cmd, re.S)
+    if m:
+        quoted_tag = re.match(r"<<-?\s*['\"]", m.group(0)) is not None
+        return (m.start(),) + m.span(2) + (quoted_tag,)
+    # a double-quoted value may hold \" ; $'...' and a single-quoted one can't hold an escape.
+    # gh takes the last --body, so the last match is the body that will be sent.
+    last = None
+    for m in re.finditer(r"(?:--body=|(?:--body|-b)[ \t]+)"
+                         r"(?:\$'([^']*)'|'([^']*)'|\"((?:[^\"\\]|\\.)*)\"|(\S+))", cmd):
+        last = m
+    if last:
+        i = next(i for i in (1, 2, 3, 4) if last.group(i) is not None)
+        # $'...' and '...' are inert; "..." and bare are not
+        return (last.start(), last.start(i), last.end(i), i in (1, 2))
+    return None
+
+
+def segment_start(cmd, i):
+    """Index where the simple command around position i begins: just past the last separator before i
+    that the shell would act on, skipping separators inside quotes.
+
+    A command substitution starts a command even inside double quotes, so `$(` and a backtick count
+    there too: the text after them is a command of its own, whatever quotes surround it."""
+    pos, quote, start = 0, None, 0
+    while pos < i:
+        two = cmd[pos:pos + 2]
+        if quote:
+            if quote == '"':
+                if cmd[pos] == "\\":
+                    pos += 2
+                    continue
+                if two == "$(" or cmd[pos] == "`":
+                    pos += len(two) if two == "$(" else 1
+                    start = pos
+                    continue
+            if cmd[pos] == quote:
+                quote = None
+            pos += 1
+        elif cmd[pos] in "'\"":
+            quote = cmd[pos]
+            pos += 1
+        elif cmd[pos] in "&|;\n()`" or two == "$(":
+            pos += 2 if two in ("&&", "||", "$(") else 1
+            start = pos
+        else:
+            pos += 1
+    return start
+
+
+def body_is_ghs(cmd, intro):
+    """Does the body introduced at `intro` belong to a gh command, and is that gh the real one?
+
+    The simple command the `<<` or the --body flag sits in has to be gh. One step outward is allowed:
+    `--body "$(cat <<'EOT' ... EOT)"` is how a review with a long body is usually written, and a bare
+    `cat` reading a heredoc runs nothing -- it copies the text out -- so the body is still gh's. Any
+    other command there keeps its own body: `"$(bash <<'E' ... E)"` runs what the heredoc holds.
+
+    And that gh has to be the *first* command, with nothing run before it. `gh` is a name, and anything
+    the shell runs first can give the name to something else: a function, an alias, `hash -p /bin/bash
+    gh`, `export PATH=/tmp/evil`. Earlier heads here enumerated those spellings and kept missing one
+    (#75 reviews 7, 8, 9) -- and a PATH export is not a rebinding at all, so no list of rebindings was
+    ever going to cover it. Nothing before gh covers the whole family at once.
+
+    The cost, taken deliberately: a review chained after another command, `cd /tmp && gh pr comment
+    ... "$(cat <<'E'`, stops being cut, so a body of it that names an owner-only command is refused.
+    Run the gh on its own and it passes. One hole is left either way -- a gh planted on PATH by some
+    earlier, separate Bash call -- and no guard that reads one command's text can see that."""
+    i = intro
+    while True:
+        s = segment_start(cmd, i)
+        seg = cmd[s:]
+        if re.match(r"\s*gh\s", seg):
+            return cmd[:s].strip() == ""
+        # the cat has to be bare and the line has to end there: `cat <<'E' | bash` emits the heredoc
+        # into a shell, and `cat <<'E' > /tmp/x; bash /tmp/x` runs it from the file (#75 review)
+        if s >= 2 and re.match(r"\s*cat\s*<<-?\s*['\"]?\w+['\"]?[ \t]*\n", seg):
+            i = s - (2 if cmd[s - 2:s] == "$(" else 1)
+            continue
+        return False
+
+
+def outside_body(cmd):
+    """cmd without the body of a gh command in it; cmd unchanged when there is no such body.
+
+    Two conditions, both learned from breaking earlier versions of this (#73 review):
+
+    Only a body the shell cannot execute is cut: a single-quoted or $'' value, or a heredoc with a
+    quoted delimiter. A double-quoted or bare value is left alone, because $(...), a backtick and
+    ${...} all run, so the invocation can sit inside the very text we would remove. Checking for those
+    three spellings instead would be a blacklist; being unable to run anything is the property we want.
+
+    And the body has to be gh's. `gh pr comment 1 --body hi` on one line and `bash <<'E'` on the next
+    starts with gh, but that heredoc feeds bash, so cutting it would take a real invocation out. Asking
+    whether the whole remainder looks like one gh command needs a complete list of separators, and the
+    list was never complete -- a newline, a lone `&` and `<(` all got through it. So ask the question
+    that was meant instead: whose body is this, and is that gh the real one (body_is_ghs)?"""
+    found = body_span(cmd)
+    if not found:
+        return cmd
+    intro, start, end, inert = found
+    if not inert:
+        return cmd
+    if not body_is_ghs(cmd, intro):
+        return cmd
+    return cmd[:start] + cmd[end:]
+
+
 def bash_body(cmd):
     """Body text of a gh command: a heredoc if present, else the --body/-b value."""
-    m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\s*(\n|$)", cmd, re.S)
+    m = re.search(HEREDOC, cmd, re.S)
     if m:
         return m.group(2)
     try:
@@ -221,7 +343,8 @@ EPIC_HOME = CONFIG.get("epic_home") or ""   # where epics live; empty: only the 
 
 def owner_only(cmd, cwd):
     """The deny message when cmd matches one of the config's owner-only commands and this session isn't exempt.
-    A command's `match` is a regex on the command text; `only_in`, if set, must appear in the folder or the command.
+    A command's `match` is a regex on the command text with any `gh` body taken out; `only_in`, if set, must
+    appear in the folder or in what is left of the command.
     A field of the wrong type fails closed: no exemption, no folder limit, the default message. notes.py reports it."""
     rule = CONFIG.get("owner_only")
     if not isinstance(rule, dict) or not isinstance(rule.get("commands"), list):
@@ -229,6 +352,7 @@ def owner_only(cmd, cwd):
     env = rule.get("allow_env")
     if isinstance(env, str) and env and os.environ.get(env) == "1":
         return None
+    cmd = outside_body(cmd)   # a review that names an owner-only command is not running it (#73)
     msg = rule.get("message")
     for c in rule["commands"]:
         if not isinstance(c, dict):
