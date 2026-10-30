@@ -13,6 +13,11 @@
 # PLAYBOOK_CONFIG_TOKEN in the environment once and each session reads the latest itself (#53,
 # docs/how-it-works.md, "When your settings change").
 #
+# It also allows scripts/console-post.sh by name (#86), in both spellings a session may type:
+# the auto-mode check reads a session's own POST to the console as data exfiltration, and a fixed
+# script can be allowed where a curl pattern cannot. Unverified: whether an allow rule overrides
+# that check at all; the first snapshot run after this is pasted shows it.
+#
 # It overwrites ~/.claude/settings.json; a fresh cloud container has none.
 # Keep the matchers in step with claude/settings.json. Changing this file means pasting again.
 set -u
@@ -26,6 +31,12 @@ CONFIG
 cat > "$HOME/.claude/settings.json" <<EOF
 {
   "autoCompactWindow": 250000,
+  "permissions": {
+    "allow": [
+      "Bash(~/.claude/playbook/scripts/console-post.sh:*)",
+      "Bash($PB/scripts/console-post.sh:*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       { "hooks": [{ "type": "command", "command": "git -C $PB pull -q --ff-only >/dev/null 2>&1; exit 0" }] },

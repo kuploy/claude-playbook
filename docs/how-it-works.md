@@ -196,6 +196,8 @@ A permission prompt is temporary, so it goes to the console only, never to a pul
 
 It needs `INGEST_SECRET` in the session's environment. How to set it, and why it must match the console's: the console's `docs/setup.md`. Without it the hook does nothing. It never blocks a session: if the console is down, the session carries on.
 
+A session that posts to the console itself, rather than through a hook, uses [`scripts/console-post.sh`](../scripts/console-post.sh) — `console-post.sh sessions snapshot.json`. The auto-mode check reads a session's own POST to the console as data exfiltration, and `scripts/cloud-setup.sh` allows this one script by name where it cannot allow a curl pattern (#86). The script takes one plain path segment, so the allow rule stays a rule about this console and not about any URL.
+
 ## The guard hook
 
 `claude/hooks/guard.py` runs before a tool call and can refuse it. Claude Code runs it, not the model.
