@@ -12,8 +12,18 @@ permissions:
   contents: read
 
 jobs:
-  guard:
+  suites:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 -I tests/test_guard.py
+      # Every tests/test_*.py, not a list of names: the console-post host check was rewritten twice
+      # and wrong both times because nothing in the repo ran it, and naming files here means the
+      # next suite is one forgotten line away from the same gap (#88). All of them run, then the
+      # job fails if any did, so one red suite doesn't hide another.
+      - run: |
+          rc=0
+          for t in tests/test_*.py; do
+            echo "== $t"
+            python3 -I "$t" || rc=1
+          done
+          exit $rc
