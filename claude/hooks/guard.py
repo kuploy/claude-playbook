@@ -96,9 +96,40 @@ def review_problem(body):
     return None
 
 
+HEREDOC = r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\s*(\n|$)"
+GH_WITH_BODY = r"\bgh\s+(pr\s+(create|edit|comment|review)|issue\s+(create|comment))\b"
+
+
+def body_span(cmd):
+    """Where a body sits in cmd: (start, end) of a heredoc's text or a --body/-b value, else None.
+
+    bash_body returns that text; this returns its place, so a caller can cut it out by index instead of
+    by value. Cutting by value removed every copy, which took a real invocation out along with the body
+    that quoted it (#73 review)."""
+    m = re.search(HEREDOC, cmd, re.S)
+    if m:
+        return m.span(2)
+    m = re.search(r"(?:--body=|(?:--body|-b)[ \t]+)(?:'([^']*)'|\"([^\"]*)\"|(\S+))", cmd)
+    if m:
+        return next(m.span(i) for i in (1, 2, 3) if m.group(i) is not None)
+    return None
+
+
+def outside_body(cmd):
+    """cmd without its body, when cmd is a gh command carrying one; cmd unchanged otherwise.
+
+    The gh test runs on what is left after the cut, not on the whole command: a body naming a gh
+    command does not make its own command one."""
+    span = body_span(cmd)
+    if not span:
+        return cmd
+    rest = cmd[:span[0]] + cmd[span[1]:]
+    return rest if re.search(GH_WITH_BODY, rest) else cmd
+
+
 def bash_body(cmd):
     """Body text of a gh command: a heredoc if present, else the --body/-b value."""
-    m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\s*(\n|$)", cmd, re.S)
+    m = re.search(HEREDOC, cmd, re.S)
     if m:
         return m.group(2)
     try:
@@ -230,9 +261,7 @@ def owner_only(cmd, cwd):
     env = rule.get("allow_env")
     if isinstance(env, str) and env and os.environ.get(env) == "1":
         return None
-    body = bash_body(cmd)
-    if body:
-        cmd = cmd.replace(body, "")   # a review that names an owner-only command is not running it (#73)
+    cmd = outside_body(cmd)   # a review that names an owner-only command is not running it (#73)
     msg = rule.get("message")
     for c in rule["commands"]:
         if not isinstance(c, dict):
