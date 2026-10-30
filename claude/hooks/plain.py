@@ -124,8 +124,9 @@ def main():
         return
     quoted = "\n".join(f"- {', '.join(why)}: \"{s[:200]}\"" for s, why in hits[:QUOTES])
     more = f"\n(and {len(hits) - QUOTES} more)" if len(hits) > QUOTES else ""
-    reason = ("Your reply breaks the plain-language rules (rules: \"How to talk to me\"). Send only \"Rewritten:\" and the new text, "
-              "no intro and no apology, since the owner already saw the first one: "
+    reason = ("Your reply breaks the plain-language rules (rules: \"How to talk to me\"). Send \"Rewritten:\" and then only "
+              "the paragraphs that hold a line quoted below, rewritten. Leave every other paragraph out, "
+              "and add no intro and no apology, since the owner already has the first reply on screen (#65): "
               "someone does X, then Y happens; one idea per sentence. Shorter, but never a different claim: "
               "keep every if, when and maybe, and add nothing the first draft did not say.\n" + quoted + more)
     print(json.dumps({"decision": "block", "reason": reason}))
