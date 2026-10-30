@@ -109,7 +109,8 @@ def body_span(cmd):
     m = re.search(HEREDOC, cmd, re.S)
     if m:
         return m.span(2)
-    m = re.search(r"(?:--body=|(?:--body|-b)[ \t]+)(?:'([^']*)'|\"([^\"]*)\"|(\S+))", cmd)
+    # a double-quoted value may hold \" ; a single-quoted one can't hold an escape at all
+    m = re.search(r"(?:--body=|(?:--body|-b)[ \t]+)(?:'([^']*)'|\"((?:[^\"\\]|\\.)*)\"|(\S+))", cmd)
     if m:
         return next(m.span(i) for i in (1, 2, 3) if m.group(i) is not None)
     return None
