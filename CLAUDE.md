@@ -16,19 +16,23 @@ writes to. So merging a rule change makes desktop strict and leaves cloud lax un
 the gap runs in whichever direction the change went. A PR that edits those rules says in its body
 that a re-paste is owed, and the session that merged it tells him — batched, not once per PR.
 
-**A hook change reaches sessions on its own, but not at the same time in both places**, and never
-by a re-paste. There is no staging either, so a broken `claude/hooks/guard.py` blocks work in every
-repo at once. That is why the suites exist and why CI runs them (#88).
+**A hook change reaches every session on its own, desktop and cloud alike**, and never by a
+re-paste. Both places pull this repo at session start: `~/.claude/settings.json` on the desktop runs
+the hooks out of this working checkout by absolute path, and `scripts/cloud-setup.sh:42` installs the
+same `SessionStart` pull against its `~/.claude/playbook` clone. So a merged hook change is live at
+the next session start in both. There is no staging, so a broken `claude/hooks/guard.py` blocks work
+in every repo at once. That is why the suites exist and why CI runs them (#88).
 
-On the desktop, `~/.claude/settings.json` runs the hooks out of this working checkout by absolute
-path, and a `SessionStart` hook does `git pull -q --ff-only` on it first. So a merged change is live
-at the next session start — unless the checkout is sitting on a feature branch, in which case the
-pull fast-forwards *that* branch and `main`'s change never reaches the session.
+Two ways a session can still be running an old hook, and neither says so:
 
-In the cloud, `scripts/cloud-setup.sh:26` clones this repo to `~/.claude/playbook` only when
-`$PB/.git` is absent. Nothing ever pulls it. A container created before your change keeps the old
-hooks until it is recreated; a new one gets `main` at clone time. So after merging a hook change,
-assume long-lived cloud containers are still on the old one.
+- **Both pulls throw away their output and their exit status.** A diverged local `main`, a dead
+  network and a missing clone all look exactly like success. Nothing in the session reports it.
+- **On the desktop, the checkout may be on a feature branch.** The pull then fast-forwards *that*
+  branch and `main`'s change never arrives. The cloud clone is `--depth 1` on `main`, so it has that
+  problem only if someone checks something else out in it.
+
+So after merging a hook change, the thing to check is not whether the pull runs — it does — but
+whether the session that matters got it.
 
 When a change touches both — the rule text and the hook that enforces it — they land in the same PR.
 Otherwise the laxer of the two decides for however long the gap lasts.
@@ -48,7 +52,14 @@ such a branch counts as a writer of its own and eats a slot nobody can see.
 repo, and `PATTERNS["lead-writer"]` is `(1, False)`, so `check_role:587` denies `feat/lead/<n>-slug`
 outright. There is no separate writer session for this repo — the lead writes here, and did for #89
 and #95 — so `lead-writer` would lock out the only session that writes. `peer-review` is what this
-repo already does: one writer, two reviews before merge from sessions that aren't the writer.
+repo already does: one writer, two reviews before merge from sessions that aren't the writer. Ed
+settled this on 2026-10-30, against the `lead-writer` he first named on #92.
+
+`lead = lead` reads oddly here, because `peer-review` calls the session that reports to Ed the
+*writer*, not the lead. The field names that role whatever the session's own role name is, and this
+one's is `lead` — so `feat/lead/<n>-slug` is the writer's branch on this repo, and `(1, True)` lets
+it through. Keep the line on the first line of this file by convention only: `repo_pattern:566`
+searches with `re.M`, so a second `Pattern:` anywhere below would silently win.
 
 ## Tests
 
