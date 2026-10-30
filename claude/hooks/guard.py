@@ -97,35 +97,61 @@ def review_problem(body):
 
 
 HEREDOC = r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\s*(\n|$)"
-GH_WITH_BODY = r"\bgh\s+(pr\s+(create|edit|comment|review)|issue\s+(create|comment))\b"
+RUNS = ("$(", "`")   # a body holding either one executes, so cutting it could hide an invocation
 
 
 def body_span(cmd):
-    """Where a body sits in cmd: (start, end) of a heredoc's text or a --body/-b value, else None.
+    """Where a body sits in cmd: (start, end, literal) for a heredoc's text or a --body/-b value, else None.
 
     bash_body returns that text; this returns its place, so a caller can cut it out by index instead of
     by value. Cutting by value removed every copy, which took a real invocation out along with the body
-    that quoted it (#73 review)."""
+    that quoted it (#73 review).
+
+    `literal` says the shell will not run anything inside the body: a quoted heredoc tag, a single-quoted
+    value or a $'' one. A review body is full of backticks, so this is what keeps markdown cuttable."""
     m = re.search(HEREDOC, cmd, re.S)
     if m:
-        return m.span(2)
+        quoted_tag = re.match(r"<<-?\s*['\"]", m.group(0)) is not None
+        return m.span(2) + (quoted_tag,)
     # a double-quoted value may hold \" ; a single-quoted one can't hold an escape at all
-    m = re.search(r"(?:--body=|(?:--body|-b)[ \t]+)(?:'([^']*)'|\"((?:[^\"\\]|\\.)*)\"|(\S+))", cmd)
-    if m:
-        return next(m.span(i) for i in (1, 2, 3) if m.group(i) is not None)
+    # a double-quoted value may hold \" ; $'...' and a single-quoted one can't hold an escape.
+    # gh takes the last --body, so the last match is the body that will be sent.
+    last = None
+    for m in re.finditer(r"(?:--body=|(?:--body|-b)[ \t]+)"
+                         r"(?:\$'([^']*)'|'([^']*)'|\"((?:[^\"\\]|\\.)*)\"|(\S+))", cmd):
+        last = m
+    if last:
+        i = next(i for i in (1, 2, 3, 4) if last.group(i) is not None)
+        return last.span(i) + (i in (1, 2),)   # $'...' and '...' are literal; "..." and bare are not
     return None
 
 
 def outside_body(cmd):
-    """cmd without its body, when cmd is a gh command carrying one; cmd unchanged otherwise.
+    """cmd without its body, when cmd is one gh command carrying a body; cmd unchanged otherwise.
 
-    The gh test runs on what is left after the cut, not on the whole command: a body naming a gh
-    command does not make its own command one."""
-    span = body_span(cmd)
-    if not span:
+    Two conditions, both learned from breaking earlier versions of this (#73 review):
+
+    What is left after the cut must *start* with gh. Finding gh anywhere in the remainder is not
+    enough -- `bash <<'A'` whose body runs an owner-only command, with a gh comment chained after it,
+    would have its real invocation cut out and pass.
+
+    A body the shell would run is left alone unless it is literal: with $( or a backtick in a
+    double-quoted value, the invocation can sit inside the very text we would remove.
+
+    And the remainder must be one gh command, not a chain starting with one: `gh pr list && bash <<'E'`
+    begins with gh, and the first heredoc in it belongs to bash, so cutting that body would have taken
+    the invocation with it. A review chained to another command is therefore not cut, and stays denied
+    if it names an owner-only command -- the safe direction, and rare."""
+    found = body_span(cmd)
+    if not found:
         return cmd
-    rest = cmd[:span[0]] + cmd[span[1]:]
-    return rest if re.search(GH_WITH_BODY, rest) else cmd
+    start, end, literal = found
+    if not literal and any(r in cmd[start:end] for r in RUNS):
+        return cmd
+    rest = cmd[:start] + cmd[end:]
+    if re.search(r"&&|\|\||[;|]", rest):
+        return cmd
+    return rest if re.match(r"\s*gh\s", rest) else cmd
 
 
 def bash_body(cmd):
