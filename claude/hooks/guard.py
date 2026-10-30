@@ -160,10 +160,13 @@ def segment_start(cmd, i):
     return start
 
 
-# body_is_ghs asks whether a segment starts with gh, which is a name, and a command can give that name
-# to something else first: `gh(){ bash; }; gh <<'E'` reads the heredoc into a shell (#75 review 7).
-# Three spellings define or rebind it; a command that does any of them keeps its body.
-REDEFINES_GH = re.compile(r"\bgh\s*\(\s*\)|\bfunction\s+gh\b|\balias\s+gh=")
+# body_is_ghs trusts two command names, and a command can give either name to something else first:
+# `gh(){ bash; }; gh <<'E'` and `cat(){ bash; }; gh ... "$(cat <<'E' ...)"` both read the heredoc into a
+# shell (#75 reviews 7 and 8). So build the check from the list of names it trusts -- adding a third
+# name to TRUSTED would otherwise reopen this -- and cover the three spellings that bind one.
+TRUSTED = ("gh", "cat")
+REDEFINES = re.compile(r"\b(?:%s)\s*\(\s*\)|\bfunction\s+(?:%s)\b|\balias\s+(?:%s)="
+                       % ((("|".join(TRUSTED)),) * 3))
 
 
 def body_is_ghs(cmd, intro):
@@ -181,7 +184,7 @@ def body_is_ghs(cmd, intro):
             return True
         # the cat has to be bare and the line has to end there: `cat <<'E' | bash` emits the heredoc
         # into a shell, and `cat <<'E' > /tmp/x; bash /tmp/x` runs it from the file (#75 review)
-        if s >= 2 and re.match(r"\s*cat\s+<<-?\s*['\"]?\w+['\"]?[ \t]*\n", seg):
+        if s >= 2 and re.match(r"\s*cat\s*<<-?\s*['\"]?\w+['\"]?[ \t]*\n", seg):
             i = s - (2 if cmd[s - 2:s] == "$(" else 1)
             continue
         return False
@@ -209,11 +212,12 @@ def outside_body(cmd):
     intro, start, end, inert = found
     if not inert:
         return cmd
-    if REDEFINES_GH.search(cmd):   # the gh reading this body is whatever this command just made it
-        return cmd
     if not body_is_ghs(cmd, intro):
         return cmd
-    return cmd[:start] + cmd[end:]
+    rest = cmd[:start] + cmd[end:]
+    # the gh or cat reading this body may be whatever the command around it just made them. Asked of
+    # `rest`, not of cmd: a body that merely quotes `gh() { bash; }` is text the shell never runs.
+    return cmd if REDEFINES.search(rest) else rest
 
 
 def bash_body(cmd):
