@@ -101,6 +101,25 @@
             "command": "F=\"$HOME/Devl/Projects/claude-playbook/claude/hooks/plain.py\"; [ -f \"$F\" ] && exec python3 \"$F\"; exit 0"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=\"$HOME/Devl/Projects/claude-playbook/claude/hooks/notes.py\"; [ -f \"$F\" ] && exec python3 \"$F\" --stop; exit 0"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "auto|manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=\"$HOME/Devl/Projects/claude-playbook/claude/hooks/notes.py\"; [ -f \"$F\" ] && exec python3 \"$F\" --pre-compact; exit 0"
+          }
+        ]
       }
     ]
   }
