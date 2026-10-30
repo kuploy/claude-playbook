@@ -4,6 +4,32 @@
 On startup, resume and compact, prints the path of ~/.claude/notes/<session_id>.md and what it holds (the last
 4,000 characters, so a runaway file can't flood the context). Creates ~/.claude/notes/. Claude Code adds
 a SessionStart hook's stdout to the model's context. The session_id is the transcript's, which a compaction keeps.
+
+Two more modes warn before a compaction (#59):
+
+`--stop`, a Stop hook. When the session re-sends more than WARN_AT of the auto-compact window and its notes
+file is missing or over STALE_MINUTES old, it returns `hookSpecificOutput.additionalContext` once with the
+numbers, and the session rewrites the file before the turn ends. That field, not `decision: block`: the
+reference keeps it for a hook "working as designed and giving Claude guidance", with the same loop
+protections, and the transcript shows it as feedback instead of a hook error in front of the owner.
+The warning rides a Stop hook because that is the only place a message reaches the model: a PreCompact
+hook's stderr goes to the user, on `manual` only, and its `systemMessage` is
+discarded (hooks reference, PreCompact). Context size comes from the transcript's last reply: the reference
+adds up input, cache-read, cache-creation and output tokens for `context_tokens`, and so does this. The window
+is read from CLAUDE_CODE_AUTO_COMPACT_WINDOW, then from the settings files. When none of them sets it, the
+hook says nothing at all, because then Claude Code's own default decides, and that default is the model's
+context limit: about 967K on Sonnet 5 and the other 1M models, 200K on Sonnet 4.6 and Opus 4.6, and whatever
+is assumed for a model ID it doesn't recognise (model-config, "Default auto-compact thresholds"). A guess
+would nag from 160K in a session with 800K to spare. A window saved per model with /autocompact also wins
+over both and can't be read, so a number that is set can still be wrong; being set is the signal that
+somebody chose it.
+Never traps a session: it says nothing when Claude Code is already continuing from a Stop block, and at most
+once every COOLDOWN_MINUTES.
+
+`--pre-compact`, a PreCompact hook. It never blocks: blocking a proactive compaction leaves the context
+growing, and blocking one that recovers from a context-limit error fails the request (hooks reference).
+All it does is mark the notes file, so the SessionStart that follows shows the session which lines predate
+the compaction.
 Also says when the playbook config (#44) is missing or broken, since the guard then blocks no owner-only command.
 Before that check it brings the config up to date (#53): on a computer, where the config is a link into the config
 repo's clone, it pulls that clone; in the cloud, only when PLAYBOOK_CONFIG_TOKEN is set, it downloads config.json
@@ -16,11 +42,18 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
 LIMIT = 4000
 TOKEN_ENV = "PLAYBOOK_CONFIG_TOKEN"
+WINDOW_ENV = "CLAUDE_CODE_AUTO_COMPACT_WINDOW"
+WARN_AT = 0.8              # share of the window at which the Stop hook asks for a rewrite
+STALE_MINUTES = 20
+COOLDOWN_MINUTES = 20
+TAIL = 512_000             # bytes of transcript read from its end, rather than all of it every turn
+MARKER = "_A compaction "
 
 
 def config_path():
@@ -101,21 +134,170 @@ def config_problem(path):
     return None
 
 
-def main():
-    path = config_path()
+def notes_file(data):
+    """The session's notes file, or None when the id isn't one we can put in a path."""
+    sid = data.get("session_id") or ""
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", sid):
+        return None
+    return os.path.expanduser(f"~/.claude/notes/{sid}.md")
+
+
+def minutes_old(path):
+    """How long since path was last written, or None when there is no such file.
+
+    A file that is there but can't be read also comes back as None, so it is treated as missing:
+    asking for a rewrite is the right move either way.
+    """
     try:
-        note = refresh_config(path)
+        return (time.time() - os.path.getmtime(path)) / 60
+    except OSError:
+        return None
+
+
+def how_old(minutes):
+    """Minutes, until that stops reading as a number anyone pictures."""
+    if minutes < 90:
+        return f"was last written {int(minutes)} minutes ago"
+    if minutes < 48 * 60:
+        return f"was last written about {round(minutes / 60)} hours ago"
+    return f"was last written about {round(minutes / 1440)} days ago"
+
+
+def compact_window():
+    """The tokens a compaction fires at, or None when nothing readable sets it."""
+    env = (os.environ.get(WINDOW_ENV) or "").strip()
+    if env.isdigit() and int(env) > 0:
+        return int(env)
+    for path in (".claude/settings.local.json", ".claude/settings.json",
+                 os.path.expanduser("~/.claude/settings.json")):
+        try:
+            with open(path, encoding="utf-8") as f:
+                window = json.load(f).get("autoCompactWindow")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if type(window) is int and window > 0:   # not bool, which is an int
+            return window
+    return None
+
+
+def usage_in(lines):
+    """The newest reply's token total in lines, which run newest first, or None."""
+    for line in lines:
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if entry.get("isSidechain") or entry.get("type") != "assistant":
+            continue   # a subagent's usage is not this conversation's
+        usage = (entry.get("message") or {}).get("usage")
+        if not isinstance(usage, dict):
+            continue
+        total = sum(usage.get(k) if type(usage.get(k)) is int else 0
+                    for k in ("input_tokens", "cache_read_input_tokens",
+                              "cache_creation_input_tokens", "output_tokens"))
+        return total or None
+    return None
+
+
+def context_tokens(transcript_path):
+    """What the next request re-sends, from the last reply's usage, as the hooks reference adds it up.
+
+    Reads the last TAIL bytes, not the file: this runs at every turn end, and the sessions it is for
+    have the longest transcripts. Only if that end holds no reply does it read the whole thing.
+    """
+    try:
+        with open(transcript_path, "rb") as f:
+            size = f.seek(0, os.SEEK_END)
+            f.seek(max(size - TAIL, 0))
+            tail = f.read()
+    except (OSError, TypeError, ValueError):
+        return None
+    if size > TAIL:
+        tail = tail.split(b"\n", 1)[-1]   # the first line of the chunk is half a line
+    total = usage_in(reversed(tail.decode("utf-8", "replace").splitlines()))
+    if total is not None or size <= TAIL:
+        return total
+    try:
+        with open(transcript_path, encoding="utf-8", errors="replace") as f:
+            return usage_in(reversed(f.readlines()))
+    except OSError:
+        return None
+
+
+def stop():
+    """Asks for a notes rewrite while there is still room to write one."""
+    data = json.load(sys.stdin)
+    if data.get("stop_hook_active"):
+        return   # already continuing from a Stop block: never trap the session
+    path = notes_file(data)
+    if not path:
+        return
+    age = minutes_old(path)
+    if age is not None and age < STALE_MINUTES:
+        return   # the notes are current; nothing to ask for
+    stamp = os.path.join(os.path.dirname(path), f".{os.path.basename(path)}.warned")
+    asked = minutes_old(stamp)
+    if asked is not None and asked < COOLDOWN_MINUTES:
+        return   # it asked once already
+    used = context_tokens(data.get("transcript_path"))
+    if used is None:
+        return   # no reply to measure yet
+    window = compact_window()
+    if window is None or used < window * WARN_AT:
+        return
+    try:
+        os.makedirs(os.path.dirname(stamp), exist_ok=True)
+        open(stamp, "w").close()
+    except OSError:
+        return   # with no stamp it would ask every turn
+    held = "is missing" if age is None else how_old(age)
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": (
+        f"A compaction is close: this session re-sends about {used:,} tokens and one fires at "
+        f"{window:,}. Your notes file {held}. Write {path} now, then stop. "
+        "Overwrite it with what is true now, under 30 lines: open PRs and their heads, who owes what, "
+        "decisions with their dates, what comes next. Leave history out. A compaction keeps this file and "
+        "drops the rest of the conversation, and only its last 4,000 characters are shown afterwards, "
+        "so a log pushes the live state out of sight."
+    )}}))
+
+
+def pre_compact():
+    """Marks the notes file, so the SessionStart after the compaction shows which lines predate it."""
+    data = json.load(sys.stdin)
+    path = notes_file(data)
+    if not path:
+        return
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return   # nothing written yet; the SessionStart hook says so on its own
+    kept = [l for l in text.rstrip().splitlines() if not l.startswith(MARKER)]
+    trigger = data.get("trigger")
+    trigger = trigger if trigger in ("auto", "manual") else "unknown"
+    line = (f"{MARKER}({trigger}) started at {time.strftime('%Y-%m-%d %H:%M')}. "
+            "Anything above this line is older than the conversation you are reading._")
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(kept) + "\n\n" + line + "\n")
+    except OSError:
+        pass
+
+
+def main():
+    conf = config_path()
+    try:
+        note = refresh_config(conf)
     except Exception:   # a failed refresh never hides the check below
         note = None
     if note:
         print(note)
-    problem = config_problem(path)
+    problem = config_problem(conf)
     if problem:
         print(problem + " Setting up: the playbook's docs/how-it-works.md.")
-    sid = json.load(sys.stdin).get("session_id", "")
-    if not re.fullmatch(r"[A-Za-z0-9_-]+", sid):
+    path = notes_file(json.load(sys.stdin))
+    if not path:
         return
-    path = os.path.expanduser(f"~/.claude/notes/{sid}.md")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     try:
         with open(path, encoding="utf-8") as f:
@@ -131,6 +313,12 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        if "--stop" in sys.argv:
+            stop()
+        elif "--pre-compact" in sys.argv:
+            pre_compact()
+        else:
+            main()
     except Exception:
         pass
+    sys.exit(0)

@@ -168,6 +168,24 @@ When a session starts, and again after it compacts (summarises its own history t
 
 The hook only **shows** the file. Writing it is the session's job, and nothing checks that it happens. The hook runs at start, on resume and after a compaction. A session that stops writing the file comes back from a compaction with old notes and only the summary to go on (#56: the lead's notes were 9 hours old). A session whose computer or environment was set up before #42 has no hook at all, so it is never shown the file. To check a session, open `~/.claude/notes/<session_id>.md` on its machine and look at the time it was last changed.
 
+### The warning before a compaction
+
+A compaction gives no warning of its own, so #59 adds two more runs of `notes.py`.
+
+**At the end of a turn** (`--stop`, a Stop hook). The hook works out how much the session re-sends — the last reply's input, cache and output tokens, from the transcript — and compares it with the window a compaction fires at. Past 80% of that window, if the notes file is missing or more than 20 minutes old, the session is told to rewrite it before it stops, with both numbers in the message. It asks at most once every 20 minutes, and never while the session is already continuing from a Stop block, so a session can't be trapped.
+
+The window is read from `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, then from `.claude/settings.json` and `~/.claude/settings.json`. Your settings and `cloud-setup.sh` both set 250000, so it is there in practice.
+
+**If none of them sets it, the hook says nothing.** It does not guess. With no setting, Claude Code compacts at the model's own limit, and that is about 967K tokens on Sonnet 5 and the other 1M models, 200K on Sonnet 4.6 and Opus 4.6, and whatever it assumes for a model ID it doesn't recognise. A hook that assumed 200K would warn from 160K on, every 20 minutes, in a session with 800K still to spare. Being set is the signal that somebody chose the number. A window you saved for one model with `/autocompact` beats the settings file and can't be read, so even a number that is set can be wrong.
+
+**Just before the compaction** (`--pre-compact`, a PreCompact hook). It writes one line at the end of the notes file saying a compaction started and when. The SessionStart that follows shows that line, so the session knows which notes predate the conversation it is reading.
+
+It never blocks the compaction, on purpose. A PreCompact hook can block, but the message goes to you, never to the session, and only on `/compact`. Blocking also costs something: a compaction that was early is skipped and the context keeps growing, and a compaction that was recovering from a full context makes the request fail instead. So the asking is done by the Stop hook, where the message reaches the session.
+
+**What it can't cover:** a compaction that fires in the middle of a turn, before the turn ends. The Stop hook makes that window smaller; it doesn't close it. The line in the notes file is what covers the case where it loses.
+
+**Notes are current state, not a log.** Only the last 4,000 characters are shown. An append-only file pushes the live state out of that window, so the session wakes up reading history. Overwrite the file.
+
 ### Telling the console a session waits on you
 
 When a session is about to ask your permission, or sits waiting for your input, `signal.py` tells the agent console straight away. When the session moves again, it tells the console that too. The console shows it and pushes it to your phone (kuploy/claude-agent-console#70).
