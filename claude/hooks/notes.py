@@ -8,9 +8,12 @@ a SessionStart hook's stdout to the model's context. The session_id is the trans
 Two more modes warn before a compaction (#59):
 
 `--stop`, a Stop hook. When the session re-sends more than WARN_AT of the auto-compact window and its notes
-file is missing or over STALE_MINUTES old, it returns `decision: block` once with the numbers, and the session
-rewrites the file before the turn ends. The warning rides a Stop block because that is the only reason that
-reaches the model: a PreCompact hook's stderr goes to the user, on `manual` only, and its `systemMessage` is
+file is missing or over STALE_MINUTES old, it returns `hookSpecificOutput.additionalContext` once with the
+numbers, and the session rewrites the file before the turn ends. That field, not `decision: block`: the
+reference keeps it for a hook "working as designed and giving Claude guidance", with the same loop
+protections, and the transcript shows it as feedback instead of a hook error in front of the owner.
+The warning rides a Stop hook because that is the only place a message reaches the model: a PreCompact
+hook's stderr goes to the user, on `manual` only, and its `systemMessage` is
 discarded (hooks reference, PreCompact). Context size comes from the transcript's last reply: the reference
 adds up input, cache-read, cache-creation and output tokens for `context_tokens`, and so does this. The window
 is read from CLAUDE_CODE_AUTO_COMPACT_WINDOW, then from the settings files; a window saved per model with
@@ -45,6 +48,7 @@ WINDOW_ASSUMED = 200_000   # the hooks reference's own example, used when nothin
 WARN_AT = 0.8              # share of the window at which the Stop hook asks for a rewrite
 STALE_MINUTES = 20
 COOLDOWN_MINUTES = 20
+TAIL = 512_000             # bytes of transcript read from its end, rather than all of it every turn
 MARKER = "_A compaction "
 
 
@@ -135,11 +139,24 @@ def notes_file(data):
 
 
 def minutes_old(path):
-    """How long since path was last written, or None when there is no such file."""
+    """How long since path was last written, or None when there is no such file.
+
+    A file that is there but can't be read also comes back as None, so it is treated as missing:
+    asking for a rewrite is the right move either way.
+    """
     try:
         return (time.time() - os.path.getmtime(path)) / 60
     except OSError:
         return None
+
+
+def how_old(minutes):
+    """Minutes, until that stops reading as a number anyone pictures."""
+    if minutes < 90:
+        return f"was last written {int(minutes)} minutes ago"
+    if minutes < 48 * 60:
+        return f"was last written about {round(minutes / 60)} hours ago"
+    return f"was last written about {round(minutes / 1440)} days ago"
 
 
 def compact_window():
@@ -159,14 +176,9 @@ def compact_window():
     return WINDOW_ASSUMED, False
 
 
-def context_tokens(transcript_path):
-    """What the next request re-sends, from the last reply's usage, as the hooks reference adds it up."""
-    try:
-        with open(transcript_path, encoding="utf-8") as f:
-            lines = f.readlines()
-    except (OSError, TypeError, ValueError):
-        return None
-    for line in reversed(lines):
+def usage_in(lines):
+    """The newest reply's token total in lines, which run newest first, or None."""
+    for line in lines:
         try:
             entry = json.loads(line)
         except ValueError:
@@ -181,6 +193,31 @@ def context_tokens(transcript_path):
                               "cache_creation_input_tokens", "output_tokens"))
         return total or None
     return None
+
+
+def context_tokens(transcript_path):
+    """What the next request re-sends, from the last reply's usage, as the hooks reference adds it up.
+
+    Reads the last TAIL bytes, not the file: this runs at every turn end, and the sessions it is for
+    have the longest transcripts. Only if that end holds no reply does it read the whole thing.
+    """
+    try:
+        with open(transcript_path, "rb") as f:
+            size = f.seek(0, os.SEEK_END)
+            f.seek(max(size - TAIL, 0))
+            tail = f.read()
+    except (OSError, TypeError, ValueError):
+        return None
+    if size > TAIL:
+        tail = tail.split(b"\n", 1)[-1]   # the first line of the chunk is half a line
+    total = usage_in(reversed(tail.decode("utf-8", "replace").splitlines()))
+    if total is not None or size <= TAIL:
+        return total
+    try:
+        with open(transcript_path, encoding="utf-8", errors="replace") as f:
+            return usage_in(reversed(f.readlines()))
+    except OSError:
+        return None
 
 
 def stop():
@@ -209,16 +246,16 @@ def stop():
         open(stamp, "w").close()
     except OSError:
         return   # with no stamp it would ask every turn
-    held = "is missing" if age is None else f"was last written {int(age)} minutes ago"
+    held = "is missing" if age is None else how_old(age)
     assumed = "" if read else f" (nothing here sets the window, so {window:,} is an assumption)"
-    print(json.dumps({"decision": "block", "reason": (
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": (
         f"A compaction is close: this session re-sends about {used:,} tokens and one fires at "
         f"{window:,}{assumed}. Your notes file {held}. Write {path} now, then stop. "
         "Overwrite it with what is true now, under 30 lines: open PRs and their heads, who owes what, "
         "decisions with their dates, what comes next. Leave history out. A compaction keeps this file and "
         "drops the rest of the conversation, and only its last 4,000 characters are shown afterwards, "
         "so a log pushes the live state out of sight."
-    )}))
+    )}}))
 
 
 def pre_compact():
@@ -245,14 +282,14 @@ def pre_compact():
 
 
 def main():
-    path = config_path()
+    conf = config_path()
     try:
-        note = refresh_config(path)
+        note = refresh_config(conf)
     except Exception:   # a failed refresh never hides the check below
         note = None
     if note:
         print(note)
-    problem = config_problem(path)
+    problem = config_problem(conf)
     if problem:
         print(problem + " Setting up: the playbook's docs/how-it-works.md.")
     path = notes_file(json.load(sys.stdin))
