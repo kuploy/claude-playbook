@@ -97,7 +97,6 @@ def review_problem(body):
 
 
 HEREDOC = r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\s*(\n|$)"
-RUNS = ("$(", "`")   # a body holding either one executes, so cutting it could hide an invocation
 
 
 def body_span(cmd):
@@ -107,7 +106,7 @@ def body_span(cmd):
     by value. Cutting by value removed every copy, which took a real invocation out along with the body
     that quoted it (#73 review).
 
-    `literal` says the shell will not run anything inside the body: a quoted heredoc tag, a single-quoted
+    `inert` says the shell will not run anything inside the body: a quoted heredoc tag, a single-quoted
     value or a $'' one. A review body is full of backticks, so this is what keeps markdown cuttable."""
     m = re.search(HEREDOC, cmd, re.S)
     if m:
@@ -135,8 +134,10 @@ def outside_body(cmd):
     enough -- `bash <<'A'` whose body runs an owner-only command, with a gh comment chained after it,
     would have its real invocation cut out and pass.
 
-    A body the shell would run is left alone unless it is literal: with $( or a backtick in a
-    double-quoted value, the invocation can sit inside the very text we would remove.
+    Only a body the shell cannot execute is cut: a single-quoted or $'' value, or a heredoc with a
+    quoted delimiter. A double-quoted or bare value is left alone, because $(...), a backtick and
+    ${...} all run, so the invocation can sit inside the very text we would remove. Checking for those
+    three spellings instead would be a blacklist; being unable to run anything is the property we want.
 
     And the remainder must be one gh command, not a chain starting with one: `gh pr list && bash <<'E'`
     begins with gh, and the first heredoc in it belongs to bash, so cutting that body would have taken
@@ -145,8 +146,8 @@ def outside_body(cmd):
     found = body_span(cmd)
     if not found:
         return cmd
-    start, end, literal = found
-    if not literal and any(r in cmd[start:end] for r in RUNS):
+    start, end, inert = found
+    if not inert:
         return cmd
     rest = cmd[:start] + cmd[end:]
     if re.search(r"&&|\|\||[;|]", rest):
