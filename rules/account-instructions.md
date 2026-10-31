@@ -52,7 +52,7 @@ A compaction keeps these rules but drops where the work stands. So:
 
 - **A rule I state in chat goes into a playbook issue in the same turn.** "Noted" is not a home. The playbook's writer turns it into a PR; you don't open a branch for it.
 - **Keep your notes file current.** A hook gives you its path at start and after each compaction (`~/.claude/notes/<session_id>.md`). Keep it under 30 lines: open PRs and their heads, who owes what, my decisions with dates, what's next. Update it when one of those changes, not at the end.
-- The notes are for you, and they hold where the work stands. **What the work taught goes in the playbook's `docs/mechanisms.md`**: anything you had to run something to learn, with its evidence and the date. Grep that file before you say how something works. Anything with consequences still goes in a PR or issue comment.
+- The notes are for you, and they hold where the work stands. **What the work taught goes in the playbook's `docs/mechanisms.md`** (`~/.claude/playbook/docs/mechanisms.md` in the cloud; the SessionStart line prints the path either way): anything you had to run something to learn, with its evidence and the date. Grep that file before you say how something works. Anything with consequences still goes in a PR or issue comment.
 
 ## When I push back
 

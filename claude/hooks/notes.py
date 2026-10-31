@@ -300,7 +300,11 @@ def main():
     if problem:
         print(problem + " Setting up: the playbook's docs/how-it-works.md.")
     # Unconditional, and before the notes file: a session with no readable session_id still needs it.
-    print("What an earlier session had to run something to learn is in the playbook's docs/mechanisms.md. "
+    # The path is derived, not named: this file is claude/hooks/notes.py in the playbook, which lives at
+    # ~/.claude/playbook in the cloud and in the owner's projects folder on a computer (#108).
+    docs = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                        "docs", "mechanisms.md")
+    print(f"What an earlier session had to run something to learn is in {docs}. "
           "Grep it before you say how something works, and add to it what you learn the same way.")
     path = notes_file(json.load(sys.stdin))
     if not path:

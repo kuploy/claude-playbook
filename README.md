@@ -10,5 +10,6 @@ repo ──▶ one writer        PR ──▶ 2 reviews ──▶ writer merges
 - [docs/enforcement.md](docs/enforcement.md): what is enforced, by which gate, where it works, `CLAUDE_RELEASE_OWNER`
 - [docs/how-it-works.md](docs/how-it-works.md): sync, review check, per-machine setup
 - [docs/agent-console.md](docs/agent-console.md): the planned web app for assigning and watching agent work
+- [docs/mechanisms.md](docs/mechanisms.md): things a session had to probe to learn, with the evidence — grep it before claiming how something works
 - [rules/account-instructions.md](rules/account-instructions.md): the rules sessions follow (desktop imports it, cloud gets it pasted into account settings)
 - [tests/test_guard.py](tests/test_guard.py): `python3 -I tests/test_guard.py`, or `--rev <sha>` to score an older guard

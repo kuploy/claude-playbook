@@ -32,14 +32,23 @@ everybody, and nearly acted on it.
 Evidence: `claude/hooks/guard.py`, `repo_pattern` — grep the name; `CLAUDE.md` describes the same split.
 2026-10-30.
 
-### Neither repo can have branch protection
+### Branch protection is free on a public repo and refused on a private one
 
-Free plan. Both the `protection` and `rulesets` endpoints answer 403 on `kuploy/claude-playbook` and
-`kuploy/claude-agent-console`. So no check is required anywhere, a red check blocks nothing mechanically,
-and `main` takes a push from anyone holding the token. Every argument about "gating" starts from that.
+On the free plan the split is visibility, not the account. `kuploy/claude-playbook` is public, so
+protection is available and simply not configured; `kuploy/claude-agent-console` is private, so the
+endpoints refuse outright and say why. The same split explains the Actions billing refusal.
 
-Evidence: `gh api repos/kuploy/claude-playbook/branches/main/protection` → `404 Branch not protected`;
-the `rulesets` call → 403. 2026-10-30.
+So today no check is required anywhere and a red check blocks nothing mechanically — but that is a
+choice on the playbook, not a limit. The console would have to go public or be paid for.
+
+Evidence, both re-run 2026-10-31:
+
+    playbook (public)  branches/main/protection -> 404 "Branch not protected";  rulesets -> []
+    console  (private) both -> 403 "Upgrade to GitHub Pro or make this repository public"
+
+Corrected the same day: the first version of this entry said 403 on both, two lines above its own
+evidence line showing the 404. It would have told a session that protecting the playbook is
+impossible when it is free and available. Caught in review of #108 by console-writer.
 
 ### A review's `commit_id` is not the tree the reviewer read
 
@@ -49,8 +58,11 @@ nothing either. The `Head:` line a reviewer writes by hand is the only staleness
 
 That is why `two-reviews` counts it and why a review without one cannot be aged.
 
-Evidence: a review submitted 26 seconds before the commit that fixed what it asked for still carried the
-later head. 2026-10-31.
+Evidence: playbook#89, review `5717184782`. Its body says "Ran: 5a080d5"; its `commit_id` is
+`515a37e`, which was pushed at 18:48:26Z, 66 seconds before the review was submitted at 18:49:32Z.
+So the stamp named a tree the reviewer had not read. 2026-10-30.
+
+    gh api repos/kuploy/claude-playbook/pulls/89/reviews --jq '.[]|{submitted_at,commit_id}'
 
 ### `gh pr edit` is broken on these repos
 
@@ -80,8 +92,11 @@ That is what console#107 turned out to be: a staleness suffix was reported missi
 code producing it on `dev` had the feature while `main` had no `head` parameter at all. The gap was 17
 commits.
 
+That gap is closed: `dev` was promoted to `main` at `0d0d121` on 2026-10-31, and the two are identical
+as this is written. The mechanism is what to keep — the next gap opens with the next merge to `dev`.
+
 Evidence: `kuploy/claude-agent-console/CLAUDE.md`, the promotion section;
-`gh api repos/kuploy/claude-agent-console/compare/main...dev`. 2026-10-30.
+`gh api repos/kuploy/claude-agent-console/compare/main...dev` → `identical`. 2026-10-31.
 
 ### The Claude GitHub App is installed on the `kuploy` org, for all repositories
 
